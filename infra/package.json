@@ -1,0 +1,14 @@
+{
+  "name": "@ringo/infra",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "synth": "cdk synth",
+    "deploy:dev": "cdk deploy -c stage=dev",
+    "deploy:prod": "cdk deploy -c stage=prod"
+  },
+  "dependencies": { "aws-cdk-lib": "^2.270.0", "constructs": "^10.4.0" },
+  "devDependencies": { "aws-cdk": "^2.1140.0", "tsx": "^4.23.15", "typescript": "~5.9.3", "@types/node": "^24.19.2" }
+}

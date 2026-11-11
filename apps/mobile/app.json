@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Ringo",
+    "slug": "ringo",
+    "scheme": "ringo",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/ringo-icon-1024.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0b0f1a",
+    "splash": { "image": "./assets/ringo-mark-1024.png", "resizeMode": "contain", "backgroundColor": "#0b0f1a" },
+    "ios": {
+      "bundleIdentifier": "app.ringo.mobile",
+      "supportsTablet": false,
+      "infoPlist": { "UIBackgroundModes": ["remote-notification"], "ITSAppUsesNonExemptEncryption": false }
+    },
+    "android": {
+      "package": "app.ringo.mobile",
+      "adaptiveIcon": { "foregroundImage": "./assets/ringo-mark-1024.png", "backgroundColor": "#0b0f1a" },
+      "permissions": ["POST_NOTIFICATIONS"]
+    },
+    "web": { "bundler": "metro", "output": "single", "favicon": "./assets/ringo-icon-1024.png" },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-notifications", { "color": "#7c6cf6" }]
+    ],
+    "experiments": { "typedRoutes": true },
+    "extra": {
+      "apiUrl": "http://localhost:8080",
+      "cognitoDomain": "",
+      "cognitoClientId": "",
+      "devUser": "dev@ringo.local"
+    }
+  }
+}

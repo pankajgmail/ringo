@@ -1,0 +1,15 @@
+{
+  "name": "ringo",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*", "infra"],
+  "scripts": {
+    "dev:api": "npm run dev -w @ringo/api",
+    "dev:app": "npm run start -w @ringo/mobile",
+    "db:generate": "npm run db:generate -w @ringo/api",
+    "db:migrate": "npm run db:migrate -w @ringo/api",
+    "retell:setup": "npm run retell:setup -w @ringo/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": { "node": ">=22" }
+}

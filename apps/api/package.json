@@ -1,0 +1,40 @@
+{
+  "name": "@ringo/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "start": "node --import tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
+    "retell:setup": "tsx --env-file=.env scripts/setup-retell.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-kms": "^3.1164.0",
+    "@fastify/cors": "^11.4.1",
+    "@fastify/rate-limit": "^11.2.2",
+    "@fastify/websocket": "^11.3.7",
+    "@ringo/shared": "*",
+    "aws-jwt-verify": "^5.2.1",
+    "drizzle-orm": "^0.45.4",
+    "expo-server-sdk": "^8.0.0",
+    "fastify": "^5.12.8",
+    "pg": "^8.23.1",
+    "pg-boss": "^12.38.1",
+    "retell-sdk": "^6.2.19",
+    "tsx": "^4.23.15",
+    "twilio": "^6.3.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "@types/ws": "^8.18.2",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.0"
+  }
+}
