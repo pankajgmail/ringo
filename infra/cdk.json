@@ -1,1 +1,8 @@
-{ "app": "npx tsx bin/ringo.ts", "context": { "stage": "dev" } }
+{
+  "app": "npx tsx bin/ringo.ts",
+  "context": {
+    "stage": "dev",
+    "account": "334076860223",
+    "region": "us-east-2"
+  }
+}

@@ -8,7 +8,7 @@ Ringo is an AI phone assistant. It makes calls for you (billing disputes, cancel
 | `apps/api` | Fastify + Drizzle API, Retell webhooks and tools, pg-boss dialer queue |
 | `packages/shared` | zod schemas, domain constants and live-event types shared by app and API |
 | `retell/prompts.ts` | Agent prompts (outbound, booking, inbound) |
-| `infra` | AWS CDK: VPC, ECS Fargate, RDS Postgres, Cognito, KMS, S3, Secrets Manager |
+| `infra` | AWS CDK: VPC, ECS Fargate, RDS Postgres, Cognito, KMS, S3; secrets in SSM Parameter Store |
 | `docs/` | Architecture, setup, and the original prototype + requirements |
 
 ## Quick start (local)

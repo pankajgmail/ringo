@@ -7,8 +7,17 @@
     "typecheck": "tsc --noEmit",
     "synth": "cdk synth",
     "deploy:dev": "cdk deploy -c stage=dev",
-    "deploy:prod": "cdk deploy -c stage=prod"
+    "deploy:prod": "cdk deploy -c stage=prod",
+    "deploy": "bash scripts/deploy.sh"
   },
-  "dependencies": { "aws-cdk-lib": "^2.270.0", "constructs": "^10.4.0" },
-  "devDependencies": { "aws-cdk": "^2.1140.0", "tsx": "^4.23.15", "typescript": "~5.9.3", "@types/node": "^24.19.2" }
+  "dependencies": {
+    "aws-cdk-lib": "^2.270.0",
+    "constructs": "^10.4.0"
+  },
+  "devDependencies": {
+    "aws-cdk": "^2.1140.0",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "@types/node": "^24.19.2"
+  }
 }

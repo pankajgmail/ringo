@@ -1,11 +1,11 @@
-import { CfnOutput, Duration, RemovalPolicy, SecretValue, Stack, type StackProps } from "aws-cdk-lib";
+import { CfnOutput, CfnParameter, Duration, RemovalPolicy, SecretValue, Stack, type StackProps } from "aws-cdk-lib";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ecsPatterns from "aws-cdk-lib/aws-ecs-patterns";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as kms from "aws-cdk-lib/aws-kms";
 import * as s3 from "aws-cdk-lib/aws-s3";
-import * as secrets from "aws-cdk-lib/aws-secretsmanager";
+import * as ssm from "aws-cdk-lib/aws-ssm";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
@@ -18,18 +18,27 @@ import { fileURLToPath } from "node:url";
 interface Props extends StackProps {
   stage: string;
   domainName?: string;
-  /** Google OAuth web client ID. Its secret must already exist in Secrets Manager as `ringo/{stage}/google-client-secret`. */
+  /** Google OAuth web client ID. The client secret is passed at deploy time (see scripts/deploy.sh). */
   googleClientId: string;
 }
 
 /**
  * Ringo backend: VPC, RDS Postgres, Fargate API behind an ALB, Cognito, KMS, S3.
  * One stack per stage (dev / prod).
+ *
+ * Secrets live in SSM Parameter Store as SecureStrings under `/ringo/{stage}/` (see docs/setup.md).
+ * They must exist before deploying.
  */
 export class RingoStack extends Stack {
+  // Fixed zones so synth needs no AWS lookup (the region is pinned in cdk.json).
+  override get availabilityZones(): string[] {
+    return [`${this.region}a`, `${this.region}b`];
+  }
+
   constructor(scope: Construct, id: string, props: Props) {
     super(scope, id, props);
     const prod = props.stage === "prod";
+    const param = (name: string) => `/ringo/${props.stage}/${name}`;
 
     const vpc = new ec2.Vpc(this, "Vpc", { maxAzs: 2, natGateways: prod ? 2 : 1 });
 
@@ -48,7 +57,8 @@ export class RingoStack extends Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       databaseName: "ringo",
-      credentials: rds.Credentials.fromGeneratedSecret("ringo"),
+      // RDS resolves the SecureString at deploy time; CloudFormation never stores the value.
+      credentials: rds.Credentials.fromPassword("ringo", SecretValue.ssmSecure(param("db-password"))),
       multiAz: prod,
       allocatedStorage: 20,
       maxAllocatedStorage: 200,
@@ -80,10 +90,17 @@ export class RingoStack extends Stack {
       accountRecovery: cognito.AccountRecovery.NONE,
       removalPolicy: prod ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
     });
+    // Cognito can't resolve ssm-secure references, so scripts/deploy.sh reads the secret from
+    // Parameter Store and passes it as a NoEcho parameter (masked in the console and APIs).
+    const googleSecret = new CfnParameter(this, "GoogleClientSecret", {
+      type: "String",
+      noEcho: true,
+      description: `Google OAuth client secret, from ${param("google-client-secret")}`,
+    });
     const google = new cognito.UserPoolIdentityProviderGoogle(this, "Google", {
       userPool,
       clientId: props.googleClientId,
-      clientSecretValue: SecretValue.secretsManager(`ringo/${props.stage}/google-client-secret`),
+      clientSecretValue: SecretValue.cfnParameter(googleSecret),
       scopes: ["openid", "email", "profile"],
       attributeMapping: {
         email: cognito.ProviderAttribute.GOOGLE_EMAIL,
@@ -105,13 +122,9 @@ export class RingoStack extends Stack {
     });
     appClient.node.addDependency(google);
 
-    // ---------- Third-party secrets (fill in after first deploy) ----------
-    const appSecrets = new secrets.Secret(this, "AppSecrets", {
-      secretName: `ringo/${props.stage}/app`,
-      description: "RETELL_API_KEY, RETELL_*_AGENT_ID, TWILIO_* — set values in the console or with aws secretsmanager put-secret-value",
-      secretObjectValue: {},
-    });
-    const s = (key: string) => ecs.Secret.fromSecretsManager(appSecrets, key);
+    // ---------- Third-party secrets (SecureString parameters, read by ECS when the task starts) ----------
+    const s = (name: string) =>
+      ecs.Secret.fromSsmParameter(ssm.StringParameter.fromSecureStringParameterAttributes(this, `Param${name}`, { parameterName: param(name) }));
 
     // ---------- API ----------
     const cluster = new ecs.Cluster(this, "Cluster", { vpc, containerInsightsV2: ecs.ContainerInsights.ENABLED });
@@ -148,9 +161,13 @@ export class RingoStack extends Stack {
           KMS_KEY_ID: dataKey.keyArn,
           RECORDINGS_BUCKET: recordings.bucketName,
           AUTH_DEV_BYPASS: "false",
+          DB_HOST: db.dbInstanceEndpointAddress,
+          DB_PORT: db.dbInstanceEndpointPort,
+          DB_NAME: "ringo",
+          DB_USER: "ringo",
         },
         secrets: {
-          DB_SECRET: ecs.Secret.fromSecretsManager(db.secret!),
+          DB_PASSWORD: s("db-password"),
           RETELL_API_KEY: s("RETELL_API_KEY"),
           RETELL_OUTBOUND_AGENT_ID: s("RETELL_OUTBOUND_AGENT_ID"),
           RETELL_BOOKING_AGENT_ID: s("RETELL_BOOKING_AGENT_ID"),
@@ -188,6 +205,6 @@ export class RingoStack extends Stack {
     new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "UserPoolClientId", { value: appClient.userPoolClientId });
     new CfnOutput(this, "CognitoDomain", { value: domain.baseUrl() });
-    new CfnOutput(this, "AppSecretsName", { value: appSecrets.secretName });
+    new CfnOutput(this, "ParameterPath", { value: `/ringo/${props.stage}/` });
   }
 }

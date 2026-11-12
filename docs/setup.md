@@ -26,37 +26,54 @@ Ringo has no passwords: Google is the only way in. Cognito has self sign-up disa
 
 1. Google Cloud console → **APIs & Services → OAuth consent screen**. Set the app name to Ringo and add the `openid`, `email` and `profile` scopes. Publish it to production when you're ready; in testing mode only listed test users can sign in.
 2. **Credentials → Create OAuth client ID → Web application**.
-   - Authorized JavaScript origin: `https://ringo-<stage>-<account>.auth.us-west-2.amazoncognito.com`
-   - Authorized redirect URI: `https://ringo-<stage>-<account>.auth.us-west-2.amazoncognito.com/oauth2/idpresponse`
-3. Store the client secret before deploying:
-   ```sh
-   aws secretsmanager create-secret --name ringo/dev/google-client-secret --secret-string '<client secret>'
-   ```
-4. Pass the client ID to every deploy: `-c googleClientId=<id>.apps.googleusercontent.com`.
+   - Authorized JavaScript origin: `https://ringo-<stage>-334076860223.auth.us-east-2.amazoncognito.com`
+   - Authorized redirect URI: `https://ringo-<stage>-334076860223.auth.us-east-2.amazoncognito.com/oauth2/idpresponse`
+3. Store the client secret in Parameter Store (next section) as `/ringo/<stage>/google-client-secret`.
 
-## 4. AWS
+## 4. Secrets (SSM Parameter Store)
+
+Ringo deploys to AWS account `334076860223` in **US East (Ohio) `us-east-2`**, pinned in `infra/cdk.json`. All secrets are **SecureString** parameters under `/ringo/<stage>/` in that region. They are encrypted with KMS (`alias/aws/ssm`). Create them **before the first deploy**; ECS reads them each time a task starts.
+
+| Parameter | Value |
+|---|---|
+| `google-client-secret` | Google OAuth client secret (`GOCSPX-…`) |
+| `db-password` | Postgres password: letters and digits, 20+ characters (`openssl rand -hex 24`) |
+| `RETELL_API_KEY` | Retell API key |
+| `RETELL_OUTBOUND_AGENT_ID`, `RETELL_BOOKING_AGENT_ID`, `RETELL_INBOUND_AGENT_ID` | Printed by `npm run retell:setup` |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | Twilio console |
+| `DEFAULT_FROM_NUMBER` | Your Twilio number, e.g. `+14155550142` |
+
+**Console:** Systems Manager → **Parameter Store** → **Create parameter**. Set the name to e.g. `/ringo/dev/google-client-secret`, Tier **Standard**, Type **SecureString**, KMS key **My current account** (`alias/aws/ssm`), paste the bare value, and click **Create parameter**.
+
+**CLI:**
+```sh
+REGION=us-east-2
+aws ssm put-parameter --region $REGION --type SecureString --name /ringo/dev/google-client-secret --value 'GOCSPX-…'
+aws ssm put-parameter --region $REGION --type SecureString --name /ringo/dev/db-password --value "$(openssl rand -hex 24)"
+aws ssm put-parameter --region $REGION --type SecureString --name /ringo/dev/RETELL_API_KEY --value 'key_…'
+# …one per row above. If you don't have a value yet, store `unset` and update it later.
+```
+
+To change a value later, add `--overwrite`, then restart the API (`aws ecs update-service --cluster <cluster> --service <service> --force-new-deployment`). If you change `google-client-secret`, run the deploy again instead.
+
+Don't change `db-password` after the first deploy. The database keeps the original password, so a new value would lock the API out.
+
+## 5. AWS deploy
 
 ```sh
 cd infra
-npx cdk bootstrap
-npx cdk deploy -c stage=dev -c googleClientId=…                                   # ALB URL over HTTP
-npx cdk deploy -c stage=prod -c googleClientId=… -c domainName=api.example.com    # ACM + Route 53; needs a hosted zone and CDK_DEFAULT_ACCOUNT
+npx cdk bootstrap aws://334076860223/us-east-2
+STAGE=dev  GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com npm run deploy                     # ALB URL over HTTP
+STAGE=prod GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com DOMAIN=example.com npm run deploy  # api.example.com with ACM + Route 53
 ```
 
-The outputs give `ApiUrl`, `UserPoolId`, `UserPoolClientId`, `CognitoDomain` and `AppSecretsName`. Fill the secret (`ringo/<stage>/app`) with the Retell and Twilio keys:
+`scripts/deploy.sh` checks that you're signed in to account `334076860223`. It then reads `google-client-secret` from Parameter Store and passes it to CloudFormation as a hidden (NoEcho) parameter, because Cognito can't read Parameter Store directly.
 
-```sh
-aws secretsmanager put-secret-value --secret-id ringo/dev/app --secret-string '{
-  "RETELL_API_KEY":"…","RETELL_OUTBOUND_AGENT_ID":"…","RETELL_BOOKING_AGENT_ID":"…","RETELL_INBOUND_AGENT_ID":"…",
-  "TWILIO_ACCOUNT_SID":"…","TWILIO_AUTH_TOKEN":"…","TWILIO_VERIFY_SERVICE_SID":"…","DEFAULT_FROM_NUMBER":"+1…"}'
-aws ecs update-service --cluster <cluster> --service <service> --force-new-deployment
-```
-
-The container runs DB migrations on start. DB credentials come from the RDS-generated secret, and KMS + Cognito settings are injected by the stack.
+The outputs give `ApiUrl`, `UserPoolId`, `UserPoolClientId`, `CognitoDomain` and `ParameterPath`. The container runs DB migrations on start. RDS gets its password from `db-password`, and KMS + Cognito settings are injected by the stack.
 
 Set `PUBLIC_URL` to `ApiUrl`, then re-run `retell:setup` so webhooks and tools point at the deployed API.
 
-## 5. App
+## 6. App
 
 Set these in `apps/mobile/app.json` → `extra`, or via `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_COGNITO_DOMAIN` and `EXPO_PUBLIC_COGNITO_CLIENT_ID`. The stack already registers `ringo://auth`, `http://localhost:8081/auth` and `https://app.<domainName>/auth` as callback URLs. Release builds always require Google; the dev bypass only works in `__DEV__` builds against an API running with `AUTH_DEV_BYPASS=true`.
 

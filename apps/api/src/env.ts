@@ -38,12 +38,12 @@ const Env = z
     }
   });
 
-// On AWS, RDS injects its generated secret as JSON in DB_SECRET; build DATABASE_URL from it.
+// On AWS the stack passes the RDS endpoint as DB_* vars and the password from Parameter Store; build DATABASE_URL from them.
 function databaseUrl(): string | undefined {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  if (!process.env.DB_SECRET) return undefined;
-  const s = JSON.parse(process.env.DB_SECRET) as { username: string; password: string; host: string; port: number; dbname: string };
-  return `postgres://${encodeURIComponent(s.username)}:${encodeURIComponent(s.password)}@${s.host}:${s.port}/${s.dbname}`;
+  const e = process.env;
+  if (e.DATABASE_URL) return e.DATABASE_URL;
+  if (!e.DB_HOST || !e.DB_PASSWORD) return undefined;
+  return `postgres://${encodeURIComponent(e.DB_USER ?? "ringo")}:${encodeURIComponent(e.DB_PASSWORD)}@${e.DB_HOST}:${e.DB_PORT ?? 5432}/${e.DB_NAME ?? "ringo"}`;
 }
 
 export const env = Env.parse({ ...process.env, DATABASE_URL: databaseUrl() });
