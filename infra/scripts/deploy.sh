@@ -4,6 +4,7 @@
 #   STAGE=prod GOOGLE_CLIENT_ID=… DOMAIN=example.com npm run deploy -w @ringo/infra
 set -euo pipefail
 : "${STAGE:?set STAGE (dev or prod)}" "${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID}"
+[[ "$GOOGLE_CLIENT_ID" == *.apps.googleusercontent.com ]] || { echo "GOOGLE_CLIENT_ID should end in .apps.googleusercontent.com" >&2; exit 1; }
 cd "$(dirname "$0")/.."
 account="$(jq -r .context.account cdk.json)"
 region="$(jq -r .context.region cdk.json)"
