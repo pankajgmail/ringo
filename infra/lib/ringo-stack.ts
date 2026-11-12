@@ -12,6 +12,7 @@ import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as route53 from "aws-cdk-lib/aws-route53";
+import { Platform } from "aws-cdk-lib/aws-ecr-assets";
 import type { Construct } from "constructs";
 import { fileURLToPath } from "node:url";
 
@@ -138,6 +139,8 @@ export class RingoStack extends Stack {
       cluster,
       cpu: 512,
       memoryLimitMiB: 1024,
+      // Graviton: cheaper, and matches images built on Apple Silicon Macs.
+      runtimePlatform: { cpuArchitecture: ecs.CpuArchitecture.ARM64, operatingSystemFamily: ecs.OperatingSystemFamily.LINUX },
       // Single task until the live hub uses LISTEN/NOTIFY (see docs/architecture.md).
       desiredCount: 1,
       minHealthyPercent: 100,
@@ -149,7 +152,7 @@ export class RingoStack extends Stack {
         : {}),
       idleTimeout: Duration.seconds(300), // WebSockets + ask_user long-poll
       taskImageOptions: {
-        image: ecs.ContainerImage.fromAsset(repoRoot, { file: "apps/api/Dockerfile", exclude: ["**/node_modules", "apps/mobile", "infra/cdk.out", ".git"] }),
+        image: ecs.ContainerImage.fromAsset(repoRoot, { file: "apps/api/Dockerfile", platform: Platform.LINUX_ARM64, exclude: ["**/node_modules", "apps/mobile", "infra/cdk.out", ".git"] }),
         containerPort: 8080,
         logDriver: ecs.LogDrivers.awsLogs({ streamPrefix: "api", logRetention: logs.RetentionDays.ONE_MONTH }),
         environment: {
