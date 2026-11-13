@@ -3,7 +3,7 @@ import { PRIORITY_QUEUE, PROVIDERS } from "@ringo/shared";
 import { db, schema } from "../db/client.ts";
 import { env } from "../env.ts";
 import { audit } from "../lib/audit.ts";
-import { retell } from "../services/retell.ts";
+import { retell, retellConfigured } from "../services/retell.ts";
 import { publish, push } from "../services/live.ts";
 import { toOutCall } from "../services/serialize.ts";
 import { boss, enqueueCall, QUEUE, type PlaceCallJob } from "./queue.ts";
@@ -46,6 +46,7 @@ export async function placeCall(outCallId: string) {
 
   const isBooking = call.category === "reservation";
   const agentId = isBooking ? env.RETELL_BOOKING_AGENT_ID : env.RETELL_OUTBOUND_AGENT_ID;
+  if (!retellConfigured || !agentId) return finish(call.id, user.id, { status: "failed", outcome: "failed", summary: "Calling isn't set up yet. Please try again later." });
   const r = call.reservation;
   const attempt = call.attempts + 1;
 

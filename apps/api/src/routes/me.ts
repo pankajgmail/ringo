@@ -7,7 +7,7 @@ import { env } from "../env.ts";
 import { audit } from "../lib/audit.ts";
 import { encrypt } from "../lib/crypto.ts";
 
-const verify = env.TWILIO_VERIFY_SERVICE_SID ? twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN).verify.v2.services(env.TWILIO_VERIFY_SERVICE_SID) : null;
+const verify = env.TWILIO_VERIFY_SERVICE_SID && env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN ? twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN).verify.v2.services(env.TWILIO_VERIFY_SERVICE_SID) : null;
 
 export async function meRoutes(app: FastifyInstance) {
   app.get("/v1/me", async (req) => {

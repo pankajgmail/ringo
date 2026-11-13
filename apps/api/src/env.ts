@@ -13,7 +13,8 @@ const Env = z
     AUTH_DEV_BYPASS: bool,
     KMS_KEY_ID: z.string().default(""),
     DEV_ENCRYPTION_KEY: z.string().default(""),
-    RETELL_API_KEY: z.string().min(1),
+    /** Empty until Retell is set up: the API still starts, but calls and Retell webhooks are refused. */
+    RETELL_API_KEY: z.string().default(""),
     RETELL_OUTBOUND_AGENT_ID: z.string().default(""),
     RETELL_BOOKING_AGENT_ID: z.string().default(""),
     RETELL_INBOUND_AGENT_ID: z.string().default(""),
@@ -46,5 +47,8 @@ function databaseUrl(): string | undefined {
   return `postgres://${encodeURIComponent(e.DB_USER ?? "ringo")}:${encodeURIComponent(e.DB_PASSWORD)}@${e.DB_HOST}:${e.DB_PORT ?? 5432}/${e.DB_NAME ?? "ringo"}`;
 }
 
-export const env = Env.parse({ ...process.env, DATABASE_URL: databaseUrl() });
+// Parameter Store can't hold empty strings, so `unset` is the placeholder for "not configured yet".
+const raw = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== "unset"));
+
+export const env = Env.parse({ ...raw, DATABASE_URL: databaseUrl() });
 export type AppEnv = typeof env;
