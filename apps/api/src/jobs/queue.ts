@@ -1,10 +1,11 @@
 import { PgBoss } from "pg-boss";
 import { env } from "../env.ts";
+import { dbSsl } from "../db/client.ts";
 
 export const QUEUE = { placeCall: "place-call" } as const;
 export type PlaceCallJob = { outCallId: string };
 
-export const boss = new PgBoss({ connectionString: env.DATABASE_URL, schema: "pgboss" });
+export const boss = new PgBoss({ connectionString: env.DATABASE_URL, ssl: dbSsl, schema: "pgboss" });
 // Without a listener, a transient DB error is an unhandled 'error' event and crashes the process.
 boss.on("error", (err) => console.error("[pg-boss]", err));
 
