@@ -35,12 +35,13 @@ function Gate() {
   return (
     <>
       <Stack screenOptions={{ headerStyle: { backgroundColor: c.bg }, headerTintColor: c.text, contentStyle: { backgroundColor: c.bg } }}>
-        <Stack.Protected guard={signedIn}>
+        <Stack.Protected guard={signedIn} redirectTo="/sign-in">
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="call/[id]" options={{ title: "Call" }} />
           <Stack.Screen name="forwarding" options={{ title: "Forward missed calls", presentation: "modal" }} />
         </Stack.Protected>
-        <Stack.Protected guard={!signedIn}>
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Protected guard={!signedIn} redirectTo="/">
           <Stack.Screen name="sign-in" options={{ headerShown: false }} />
         </Stack.Protected>
       </Stack>

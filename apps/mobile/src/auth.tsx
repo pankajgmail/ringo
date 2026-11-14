@@ -8,9 +8,13 @@ import { config, devAuth } from "./config.ts";
 WebBrowser.maybeCompleteAuthSession();
 
 type Tokens = { idToken: string; refreshToken?: string; expiresAt: number };
-type Auth = { ready: boolean; signedIn: boolean; signIn: () => Promise<void>; signOut: () => Promise<void>; getToken: () => Promise<string | null> };
+type Auth = {
+  ready: boolean; signedIn: boolean; signIn: () => Promise<void>; signOut: () => Promise<void>; getToken: () => Promise<string | null>;
+  completeWebSignIn: (code: string, state: string) => Promise<void>;
+};
 
 const KEY = "ringo.tokens";
+const PENDING = "ringo.pendingSignIn"; // web only: PKCE verifier + state while the tab is away at Google
 // SecureStore is native-only. On web, tokens live in sessionStorage (cleared when the tab closes).
 const store = {
   get: (): Promise<string | null> => (Platform.OS === "web" ? Promise.resolve(sessionStorage.getItem(KEY)) : SecureStore.getItemAsync(KEY)),
@@ -49,11 +53,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clientId: config.cognitoClientId, redirectUri, scopes: ["openid", "email", "profile"], usePKCE: true,
       extraParams: { identity_provider: "Google", prompt: "select_account" },
     });
+    // On web, Google's headers cut a popup off from this tab, so redirect the whole tab instead.
+    // Cognito sends it back to /auth, which calls completeWebSignIn.
+    if (Platform.OS === "web") {
+      const url = await req.makeAuthUrlAsync(discovery!);
+      sessionStorage.setItem(PENDING, JSON.stringify({ verifier: req.codeVerifier, state: req.state }));
+      window.location.assign(url);
+      return;
+    }
     const res = await req.promptAsync(discovery!);
     if (res.type === "error") throw res.error ?? new Error("sign-in failed");
     if (res.type !== "success") return; // user cancelled
     const t = await AuthSession.exchangeCodeAsync(
       { clientId: config.cognitoClientId, code: res.params.code!, redirectUri, extraParams: { code_verifier: req.codeVerifier! } },
+      discovery!,
+    );
+    await save({ idToken: t.idToken!, refreshToken: t.refreshToken, expiresAt: Date.now() + (t.expiresIn ?? 3600) * 1000 });
+  }, [save]);
+
+  const completeWebSignIn = useCallback(async (code: string, state: string) => {
+    const raw = sessionStorage.getItem(PENDING);
+    sessionStorage.removeItem(PENDING); // a code can only be exchanged once
+    const pending = raw ? (JSON.parse(raw) as { verifier?: string; state?: string }) : null;
+    if (!pending?.verifier || pending.state !== state) throw new Error("Sign-in expired. Please try again.");
+    const t = await AuthSession.exchangeCodeAsync(
+      { clientId: config.cognitoClientId, code, redirectUri, extraParams: { code_verifier: pending.verifier } },
       discovery!,
     );
     await save({ idToken: t.idToken!, refreshToken: t.refreshToken, expiresAt: Date.now() + (t.expiresIn ?? 3600) * 1000 });
@@ -76,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [tokens, save]);
 
-  const value = useMemo(() => ({ ready, signedIn: !!tokens, signIn, signOut, getToken }), [ready, tokens, signIn, signOut, getToken]);
+  const value = useMemo(() => ({ ready, signedIn: !!tokens, signIn, signOut, getToken, completeWebSignIn }), [ready, tokens, signIn, signOut, getToken, completeWebSignIn]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
