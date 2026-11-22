@@ -37,7 +37,8 @@ export async function buildApp() {
     return reply.code(status).send({ error: status >= 500 ? "internal_error" : e.message });
   });
 
-  await app.register(cors, { origin: true, credentials: true });
+  // @fastify/cors defaults to GET,HEAD,POST; the app also uses PUT and DELETE.
+  await app.register(cors, { origin: true, credentials: true, methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
   await app.register(websocket);
 

@@ -2,8 +2,13 @@ import Constants from "expo-constants";
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string>;
 // EXPO_PUBLIC_* env vars (set in EAS / .env) override app.json for per-stage builds.
+/** "same-origin" means the web app and API share a host (CloudFront serves both), so use the page's origin. */
+function resolveApiUrl(v: string) {
+  return v === "same-origin" && typeof window !== "undefined" ? window.location.origin : v;
+}
+
 export const config = {
-  apiUrl: process.env.EXPO_PUBLIC_API_URL ?? extra.apiUrl ?? "http://localhost:8080",
+  apiUrl: resolveApiUrl(process.env.EXPO_PUBLIC_API_URL ?? extra.apiUrl ?? "http://localhost:8080"),
   cognitoDomain: process.env.EXPO_PUBLIC_COGNITO_DOMAIN ?? extra.cognitoDomain ?? "",
   cognitoClientId: process.env.EXPO_PUBLIC_COGNITO_CLIENT_ID ?? extra.cognitoClientId ?? "",
   /** Used only when Cognito isn't configured: the API must run with AUTH_DEV_BYPASS=true. */

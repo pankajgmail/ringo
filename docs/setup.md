@@ -71,7 +71,9 @@ STAGE=prod GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com DOMAIN=example.com n
 
 The outputs give `ApiUrl`, `UserPoolId`, `UserPoolClientId`, `CognitoDomain` and `ParameterPath`. The container runs DB migrations on start. RDS gets its password from `db-password`, and KMS + Cognito settings are injected by the stack.
 
-Set `PUBLIC_URL` to `ApiUrl`, then re-run `retell:setup` so webhooks and tools point at the deployed API.
+Set `PUBLIC_URL`, then re-run `retell:setup` so webhooks and tools point at the deployed API. With a custom domain, use `ApiUrl`. Without one, use the ALB address (`ApiServiceURL…` output, plain HTTP), not `ApiUrl`/`WebUrl`: CloudFront cuts origin requests off at 60 seconds, and the `ask_user` tool waits up to 90.
+
+The web app is served at the `WebUrl` output. `npm run deploy` builds it (`expo export --platform web`) and uploads it; on the very first deploy it is skipped because the Cognito client ID doesn't exist yet, so run the deploy a second time.
 
 ## 6. App
 

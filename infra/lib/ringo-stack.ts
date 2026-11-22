@@ -12,6 +12,10 @@ import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as route53 from "aws-cdk-lib/aws-route53";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
+import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
+import { existsSync } from "node:fs";
 import { Platform } from "aws-cdk-lib/aws-ecr-assets";
 import type { Construct } from "constructs";
 import { fileURLToPath } from "node:url";
@@ -24,7 +28,8 @@ interface Props extends StackProps {
 }
 
 /**
- * Ringo backend: VPC, RDS Postgres, Fargate API behind an ALB, Cognito, KMS, S3.
+ * Ringo: VPC, RDS Postgres, Fargate API behind an ALB, Cognito, KMS, S3, and a CloudFront
+ * distribution that serves the web app and proxies the API over HTTPS on the same origin.
  * One stack per stage (dev / prod).
  *
  * Secrets live in SSM Parameter Store as SecureStrings under `/ringo/{stage}/` (see docs/setup.md).
@@ -82,6 +87,37 @@ export class RingoStack extends Stack {
       autoDeleteObjects: !prod,
     });
 
+    // ---------- Web app (CloudFront) ----------
+    // One HTTPS origin for the browser: the exported Expo web app from S3, and the API behind
+    // /v1, /retell and /health. Same origin means no CORS and no mixed content, even without a
+    // custom domain. The ALB origin is added once the API exists (below).
+    const webBucket = new s3.Bucket(this, "Web", {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
+    // The web export is a single-page app (app.json web.output = "single"): serve index.html for
+    // every route without a file extension (/auth, /call/123) and let Expo Router take over.
+    const rewrite = new cloudfront.Function(this, "WebRewrite", {
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+      code: cloudfront.FunctionCode.fromInline(`function handler(event) {
+  var r = event.request;
+  if (r.uri.lastIndexOf(".") <= r.uri.lastIndexOf("/")) r.uri = "/index.html";
+  return r;
+}`),
+    });
+    const web = new cloudfront.Distribution(this, "WebCdn", {
+      defaultRootObject: "index.html",
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(webBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        functionAssociations: [{ function: rewrite, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }],
+      },
+      errorResponses: [{ httpStatus: 403, responseHttpStatus: 200, responsePagePath: "/index.html", ttl: Duration.seconds(0) }],
+    });
+    const webUrl = `https://${web.distributionDomainName}`;
+
     // ---------- Auth: Google sign-in only ----------
     // No self sign-up and no passwords: the only way to get a user is to sign in with Google.
     const userPool = new cognito.UserPool(this, "Users", {
@@ -116,8 +152,8 @@ export class RingoStack extends Stack {
       oAuth: {
         flows: { authorizationCodeGrant: true },
         scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE],
-        callbackUrls: ["ringo://auth", "http://localhost:8081/auth", ...(props.domainName ? [`https://app.${props.domainName}/auth`] : [])],
-        logoutUrls: ["ringo://", "http://localhost:8081/", ...(props.domainName ? [`https://app.${props.domainName}/`] : [])],
+        callbackUrls: ["ringo://auth", "http://localhost:8081/auth", `${webUrl}/auth`, ...(props.domainName ? [`https://app.${props.domainName}/auth`] : [])],
+        logoutUrls: ["ringo://", "http://localhost:8081/", `${webUrl}/`, ...(props.domainName ? [`https://app.${props.domainName}/`] : [])],
       },
       preventUserExistenceErrors: true,
     });
@@ -133,7 +169,8 @@ export class RingoStack extends Stack {
     // Retell only calls HTTPS endpoints, so production needs a domain (Route 53 hosted zone) for the ACM cert.
     const zone = props.domainName ? route53.HostedZone.fromLookup(this, "Zone", { domainName: props.domainName }) : undefined;
     const apiHost = props.domainName ? `api.${props.domainName}` : undefined;
-    const publicUrl = apiHost ? `https://${apiHost}` : "https://set-domainName-context";
+    // Without a custom domain, the API is reached over HTTPS through the CloudFront distribution.
+    const publicUrl = apiHost ? `https://${apiHost}` : webUrl;
 
     const api = new ecsPatterns.ApplicationLoadBalancedFargateService(this, "Api", {
       cluster,
@@ -189,6 +226,36 @@ export class RingoStack extends Stack {
     dataKey.grant(api.taskDefinition.taskRole, "kms:GenerateDataKey");
     recordings.grantReadWrite(api.taskDefinition.taskRole);
 
+    // ---------- Web app: API behind CloudFront ----------
+    const apiOrigin = new origins.LoadBalancerV2Origin(api.loadBalancer, {
+      protocolPolicy: apiHost ? cloudfront.OriginProtocolPolicy.HTTPS_ONLY : cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+      // 60s is CloudFront's default ceiling. Retell's ask_user tool waits up to 90s, so leave Retell's
+      // webhook and tool URLs on the ALB until that quota is raised.
+      readTimeout: Duration.seconds(60),
+      keepaliveTimeout: Duration.seconds(60),
+    });
+    const apiBehavior: cloudfront.BehaviorOptions = {
+      origin: apiOrigin,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+      allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+      cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+      // Forward everything except Host: the ALB routes on its own name, and Retell signs the raw body.
+      originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+    };
+    for (const path of ["/v1/*", "/retell/*", "/health"]) web.addBehavior(path, apiOrigin, apiBehavior);
+
+    // Upload the exported web app if it has been built (scripts/deploy.sh builds it first).
+    const webDist = fileURLToPath(new URL("../../apps/mobile/dist", import.meta.url));
+    if (existsSync(webDist)) {
+      new s3deploy.BucketDeployment(this, "WebDeploy", {
+        sources: [s3deploy.Source.asset(webDist)],
+        destinationBucket: webBucket,
+        distribution: web,
+        distributionPaths: ["/*"],
+        memoryLimit: 512,
+      });
+    }
+
     // ---------- Alarms ----------
     new cloudwatch.Alarm(this, "Api5xx", {
       metric: api.loadBalancer.metrics.httpCodeTarget(elbv2.HttpCodeTarget.TARGET_5XX_COUNT, { period: Duration.minutes(5) }),
@@ -203,6 +270,9 @@ export class RingoStack extends Stack {
       alarmDescription: "No healthy API task — inbound calls and live outbound calls are affected",
     });
 
+    new CfnOutput(this, "WebUrl", { value: webUrl });
+    new CfnOutput(this, "WebBucket", { value: webBucket.bucketName });
+    new CfnOutput(this, "WebDistributionId", { value: web.distributionId });
     new CfnOutput(this, "ApiUrl", { value: publicUrl });
     new CfnOutput(this, "LoadBalancerDns", { value: api.loadBalancer.loadBalancerDnsName });
     new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
