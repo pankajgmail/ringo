@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/auth.tsx";
-import { Button, Loading, s } from "@/ui.tsx";
-import { c, space } from "@/theme.ts";
+import { Button, ErrorLine, Loading, s } from "@/ui.tsx";
+import { space } from "@/theme.ts";
 
 // Cognito redirects here after Google sign-in. On web this finishes the sign-in;
 // on native, expo-auth-session catches the redirect first and this screen just moves on.
@@ -29,8 +29,8 @@ export default function AuthCallback() {
   if (!error) return <Loading />;
   return (
     <View style={[s.screen, { justifyContent: "center", padding: space(6), gap: space(4) }]}>
-      <Text style={{ color: c.bad, textAlign: "center" }} accessibilityRole="alert">{error}</Text>
-      <Button title="Back to sign in" onPress={() => router.replace("/sign-in")} />
+      <ErrorLine text={error} />
+      <Button title="Back to sign in" icon="back" onPress={() => router.replace("/sign-in")} />
     </View>
   );
 }

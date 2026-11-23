@@ -14,6 +14,9 @@ export type Me = Profile & {
   forwarding: ReturnType<typeof forwardingCodes> | null;
 };
 
+/** Business search result. kind "service" = a national brand's customer-service line. */
+export type PlaceHit = { id: string; name: string; number: string; address: string; kind: "service" | "place"; providerId?: string; openNow?: boolean };
+
 export function useApi() {
   const { getToken, signOut } = useAuth();
 
@@ -57,6 +60,8 @@ export function useApi() {
     createCall: (c: OutCallInput) => req<OutCall>("POST", "/v1/calls", c),
     cancelCall: (id: string) => req("POST", `/v1/calls/${id}/cancel`),
     answer: (callId: string, askId: string, a: Answer) => req("POST", `/v1/calls/${callId}/asks/${askId}`, a),
+    places: (q: string, near?: string) =>
+      req<{ configured: boolean; results: PlaceHit[] }>("GET", `/v1/places?q=${encodeURIComponent(q)}${near ? `&near=${encodeURIComponent(near)}` : ""}`),
     inCalls: () => req<InCall[]>("GET", "/v1/in-calls"),
     registerPush: (token: string, platform: "ios" | "android" | "web") => req("POST", "/v1/push-tokens", { token, platform }),
   };

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Modal, Text, View } from "react-native";
 import { useLive } from "./live.tsx";
 import { useApi } from "./api.ts";
-import { Button, Field, s } from "./ui.tsx";
+import { Button, ErrorLine, Field, Icon, s } from "./ui.tsx";
 import { c, space } from "./theme.ts";
 
 /** Mid-call prompt: approve an offer, or relay a one-time code the provider texted. */
@@ -31,24 +31,28 @@ export function AskSheet() {
   return (
     <Modal transparent animationType="slide" visible onRequestClose={dismissAsk}>
       <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,.5)" }}>
-        <View style={[s.card, { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: space(5), gap: space(4) }]} accessibilityViewIsModal>
-          <Text style={s.h} accessibilityRole="header">{ask.kind === "code" ? "Ringo needs a code" : "Ringo needs your decision"}</Text>
+        <View style={[s.card, { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: space(5), gap: space(2), marginBottom: 0, maxWidth: 560, width: "100%", alignSelf: "center" }]} accessibilityViewIsModal>
+          <View style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: c.border2 }} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: c.warnSoft, alignItems: "center", justifyContent: "center" }}><Icon name={ask.kind === "code" ? "hash" : "msg"} color={c.warn} /></View>
+            <Text style={s.h} accessibilityRole="header">{ask.kind === "code" ? "Ringo needs a code" : "Ringo needs your decision"}</Text>
+          </View>
           <Text style={{ color: c.text, fontSize: 16 }}>{ask.question}</Text>
           <Text style={s.muted}>Ringo is keeping the rep on the line. Answer within {Math.max(0, Math.round((new Date(ask.expiresAt).getTime() - Date.now()) / 1000))}s.</Text>
           {ask.kind === "code" ? (
             <>
-              <Field label="Code from your text messages" value={code} onChangeText={setCode} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" autoFocus />
-              <Button title="Send code" onPress={() => send("reply")} disabled={!code} busy={busy} />
+              <Field label="Code from your text messages" icon="hash" value={code} onChangeText={setCode} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" autoFocus />
+              <Button title="Send code" icon="check" onPress={() => send("reply")} disabled={!code} busy={busy} />
             </>
           ) : (
             <>
-              <Button title="Accept" onPress={() => send("accept")} busy={busy} />
-              <Button title="Push for more" kind="ghost" onPress={() => send("counter")} disabled={busy} />
-              <Button title="I'll take over" kind="ghost" onPress={() => send("takeover")} disabled={busy} />
-              <Button title="End the call" kind="danger" onPress={() => send("end")} disabled={busy} />
+              <Button title="Accept" icon="check" onPress={() => send("accept")} busy={busy} />
+              <Button title="Push for more" icon="trend" kind="secondary" onPress={() => send("counter")} disabled={busy} />
+              <Button title="I'll take over" icon="headphones" kind="ghost" onPress={() => send("takeover")} disabled={busy} />
+              <Button title="End the call" icon="phone-off" kind="danger" onPress={() => send("end")} disabled={busy} />
             </>
           )}
-          {err ? <Text style={{ color: c.bad }} accessibilityRole="alert">{err}</Text> : null}
+          {err ? <ErrorLine text={err} /> : null}
         </View>
       </View>
     </Modal>

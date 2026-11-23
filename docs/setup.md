@@ -42,6 +42,7 @@ Ringo deploys to AWS account `334076860223` in **US East (Ohio) `us-east-2`**, p
 | `RETELL_OUTBOUND_AGENT_ID`, `RETELL_BOOKING_AGENT_ID`, `RETELL_INBOUND_AGENT_ID` | Printed by `npm run retell:setup` |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | Twilio console |
 | `DEFAULT_FROM_NUMBER` | Your Twilio number, e.g. `+14155550142` |
+| `GOOGLE_PLACES_API_KEY` | Google Places API (New) key for business search in New call. Restrict it to Places API (New). `unset` = only national brands are searchable |
 
 **Console:** Systems Manager → **Parameter Store** → **Create parameter**. Set the name to e.g. `/ringo/dev/google-client-secret`, Tier **Standard**, Type **SecureString**, KMS key **My current account** (`alias/aws/ssm`), paste the bare value, and click **Create parameter**.
 

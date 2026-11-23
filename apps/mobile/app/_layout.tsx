@@ -10,7 +10,7 @@ import { LiveProvider } from "@/live.tsx";
 import { useApi } from "@/api.ts";
 import { getPushToken } from "@/push.ts";
 import { AskSheet } from "@/AskSheet.tsx";
-import { Loading } from "@/ui.tsx";
+import { Loading, ToastProvider } from "@/ui.tsx";
 import { c } from "@/theme.ts";
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15_000 } } });
@@ -37,8 +37,9 @@ function Gate() {
       <Stack screenOptions={{ headerStyle: { backgroundColor: c.bg }, headerTintColor: c.text, contentStyle: { backgroundColor: c.bg } }}>
         <Stack.Protected guard={signedIn} redirectTo="/sign-in">
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="call/[id]" options={{ title: "Call" }} />
-          <Stack.Screen name="forwarding" options={{ title: "Forward missed calls", presentation: "modal" }} />
+          <Stack.Screen name="settings" options={{ headerShown: false, animation: "slide_from_right" }} />
+          <Stack.Screen name="call/[id]" options={{ headerShown: false, animation: "slide_from_right" }} />
+          <Stack.Screen name="forwarding" options={{ headerShown: false, animation: "slide_from_right" }} />
         </Stack.Protected>
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Protected guard={!signedIn} redirectTo="/">
@@ -56,8 +57,10 @@ export default function Root() {
       <QueryClientProvider client={qc}>
         <AuthProvider>
           <LiveProvider>
-            <StatusBar style="light" />
-            <Gate />
+            <ToastProvider>
+              <StatusBar style="light" />
+              <Gate />
+            </ToastProvider>
           </LiveProvider>
         </AuthProvider>
       </QueryClientProvider>

@@ -216,6 +216,7 @@ export class RingoStack extends Stack {
           TWILIO_AUTH_TOKEN: s("TWILIO_AUTH_TOKEN"),
           TWILIO_VERIFY_SERVICE_SID: s("TWILIO_VERIFY_SERVICE_SID"),
           DEFAULT_FROM_NUMBER: s("DEFAULT_FROM_NUMBER"),
+          GOOGLE_PLACES_API_KEY: s("GOOGLE_PLACES_API_KEY"),
         },
       },
     });

@@ -26,6 +26,8 @@ const Env = z
     TWILIO_SIP_USERNAME: z.string().default(""),
     TWILIO_SIP_PASSWORD: z.string().default(""),
     DEFAULT_FROM_NUMBER: z.string().default(""),
+    /** Google Places API (New) key for business search. Empty: only the built-in national brands are searchable. */
+    GOOGLE_PLACES_API_KEY: z.string().default(""),
     MAX_CALL_MINUTES: z.coerce.number().default(120),
     MAX_CONCURRENT_CALLS_PER_USER: z.coerce.number().default(2),
   })

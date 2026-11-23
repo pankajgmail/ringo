@@ -10,7 +10,8 @@ export const ProfileSchema = z.object({
   phone: e164,
   email: z.email(),
   address: z.string().trim().max(300).default(""),
-  carrier: z.enum(CARRIERS),
+  /** Only used to pick forwarding codes; the app no longer asks for it. */
+  carrier: z.enum(CARRIERS).optional(),
   timezone: z.string().default("America/Los_Angeles"),
 });
 export type Profile = z.infer<typeof ProfileSchema>;

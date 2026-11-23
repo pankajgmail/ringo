@@ -8,6 +8,7 @@ import { requireUser, userFromToken } from "./lib/auth.ts";
 import { pool } from "./db/client.ts";
 import { meRoutes } from "./routes/me.ts";
 import { callRoutes } from "./routes/calls.ts";
+import { placesRoutes } from "./routes/places.ts";
 import { retellRoutes } from "./routes/retell.ts";
 import { attach } from "./services/live.ts";
 
@@ -55,6 +56,7 @@ export async function buildApp() {
     api.addHook("preHandler", requireUser);
     await api.register(meRoutes);
     await api.register(callRoutes);
+    await api.register(placesRoutes);
   });
 
   // Live updates. Browsers can't set headers on WebSocket, so the token comes as a query param.

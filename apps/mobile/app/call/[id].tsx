@@ -1,55 +1,78 @@
 import { ScrollView, Text, View } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/api.ts";
 import { useLive } from "@/live.tsx";
-import { LiveCard, isLive } from "@/CallCards.tsx";
-import { Button, Card, ErrorBox, H, Loading, Muted, Pill, s } from "@/ui.tsx";
+import { LiveCard, PriPill, isLive } from "@/CallCards.tsx";
+import { Avatar, Badge, Button, Card, Chip, Empty, ErrorBox, Icon, Loading, Meta, MetaText, PageHeader, s, useToast } from "@/ui.tsx";
 import { CATEGORY, OUTCOME } from "@/labels.ts";
-import { fmtShort, fmtWhen } from "@/format.ts";
-import { c, space } from "@/theme.ts";
+import { fmtPhone, fmtShort, fmtWhen } from "@/format.ts";
+import { c } from "@/theme.ts";
+
+const OPEN = ["scheduled", "queued", "dialing", "in_progress", "awaiting_user"];
 
 export default function CallDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const api = useApi();
   const qc = useQueryClient();
+  const toast = useToast();
   const { transcript: liveLines } = useLive();
-  const q = useQuery({ queryKey: ["calls", id], queryFn: () => api.call(id), refetchInterval: (query) => (query.state.data && isLive(query.state.data) ? 10_000 : false) });
-  const cancel = useMutation({ mutationFn: () => api.cancelCall(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["calls"] }) });
+  const q = useQuery({ queryKey: ["calls", id], queryFn: () => api.call(id), refetchInterval: (query) => (query.state.data && OPEN.includes(query.state.data.status) ? 10_000 : false) });
+  const cancel = useMutation({ mutationFn: () => api.cancelCall(id), onSuccess: () => { toast("x", "Call cancelled"); qc.invalidateQueries({ queryKey: ["calls"] }); } });
 
-  if (q.isLoading) return <Loading />;
-  if (q.error || !q.data) return <View style={s.scroll}><ErrorBox error={q.error} onRetry={q.refetch} /></View>;
   const call = q.data;
-  const lines = isLive(call) && (liveLines[id]?.length ?? 0) > call.transcript.length ? liveLines[id]! : call.transcript;
-  const o = call.outcome ? OUTCOME[call.outcome] : null;
+  const lines = call ? (isLive(call) && (liveLines[id]?.length ?? 0) > call.transcript.length ? liveLines[id]! : call.transcript) : [];
+  const o = call?.outcome ? OUTCOME[call.outcome] : null;
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={s.scroll}>
-      <Stack.Screen options={{ title: call.name }} />
-      {isLive(call) ? <LiveCard call={call} /> : null}
-      <Card>
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <H>{CATEGORY[call.category].label}</H>
-          {o ? <Pill text={o.label} color={o.color} bg={o.bg} /> : null}
-        </View>
-        {call.summary ? <Text style={{ color: c.text, fontSize: 16 }}>{call.summary}</Text> : null}
-        {call.reference ? <Text selectable style={{ color: c.primaryText }}>Reference: {call.reference}</Text> : null}
-        <Muted>Goal: {call.goal}</Muted>
-        {call.limits ? <Muted>Limits: {call.limits}</Muted> : null}
-        <Muted>{fmtWhen(call.startedAt ?? call.scheduledAt)} · {fmtShort(call.durationSec)}{call.holdSec ? ` · ${fmtShort(call.holdSec)} on hold` : ""}{call.costCents != null ? ` · $${(call.costCents / 100).toFixed(2)}` : ""}</Muted>
-        {["scheduled", "queued", "dialing", "in_progress", "awaiting_user"].includes(call.status) ? (
-          <Button title={isLive(call) ? "End call now" : "Cancel call"} kind="danger" onPress={() => cancel.mutate()} busy={cancel.isPending} />
-        ) : null}
-      </Card>
-      <Card>
-        <H>Transcript</H>
-        {lines.length ? lines.map((l, i) => (
-          <View key={i} style={{ alignSelf: l.role === "agent" ? "flex-end" : "flex-start", maxWidth: "85%", backgroundColor: l.role === "agent" ? c.primarySoft : c.card2, borderRadius: 12, padding: space(3) }}>
-            <Text style={{ color: c.muted, fontSize: 11, marginBottom: 2 }}>{l.role === "agent" ? "Ringo" : "Them"}</Text>
-            <Text style={{ color: c.text }}>{l.text}</Text>
-          </View>
-        )) : <Muted>No transcript yet.</Muted>}
-      </Card>
-    </ScrollView>
+    <View style={s.screen}>
+      <PageHeader title={call?.name ?? "Call"} sub={call ? `${CATEGORY[call.category].label} · ${fmtPhone(call.number)}` : undefined} />
+      {q.isLoading ? <Loading /> : q.error || !call ? <View style={s.scroll}><ErrorBox error={q.error} onRetry={q.refetch} /></View> : (
+        <ScrollView contentContainerStyle={s.scroll}>
+          {isLive(call) ? <LiveCard call={call} onEnd={() => cancel.mutate()} /> : null}
+          <Card>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              {o ? <Badge icon={o.icon} color={o.color} bg={o.bg} label={o.label} /> : <Avatar providerId={call.providerId} size={38} />}
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: o?.color ?? c.text, fontWeight: "800", fontSize: 16 }}>{o?.label ?? (call.status === "scheduled" ? "Scheduled" : call.status === "queued" ? "Queued" : "In progress")}</Text>
+                <Meta style={{ marginTop: 2 }}><Icon name="clock" size={13} color={c.muted} /><MetaText>{fmtWhen(call.endedAt ?? call.startedAt ?? call.scheduledAt)}</MetaText></Meta>
+              </View>
+              <PriPill p={call.priority} />
+            </View>
+            {call.summary ? <Text style={{ color: c.text, fontSize: 15, lineHeight: 21 }}>{call.summary}</Text> : null}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+              {call.durationSec ? <Chip icon="clock" text={fmtShort(call.durationSec)} /> : null}
+              {call.holdSec ? <Chip icon="hourglass" text={`${Math.max(1, Math.round(call.holdSec / 60))}m hold saved`} tone="ok" /> : null}
+              {call.reference ? <Chip icon="hash" text={`Ref ${call.reference}`} tone="act" /> : null}
+              {call.costCents != null ? <Chip icon="receipt" text={`$${(call.costCents / 100).toFixed(2)}`} /> : null}
+            </View>
+            <View style={[s.item, { marginBottom: 0, gap: 6 }]}>
+              <Meta><Icon name="target" size={14} color={c.primaryText} /><MetaText>Goal</MetaText></Meta>
+              <Text style={{ color: c.text, fontSize: 14 }}>{call.goal}</Text>
+              {call.limits ? <>
+                <Meta style={{ marginTop: 4 }}><Icon name="shield" size={14} color={c.primaryText} /><MetaText>Limits</MetaText></Meta>
+                <Text style={{ color: c.text, fontSize: 14 }}>{call.limits}</Text>
+              </> : null}
+            </View>
+            {OPEN.includes(call.status) && !isLive(call) ? (
+              <Button title="Cancel call" icon="x" kind="danger" onPress={() => cancel.mutate()} busy={cancel.isPending} />
+            ) : null}
+            {cancel.error ? <ErrorBox error={cancel.error} /> : null}
+          </Card>
+          <Card>
+            <Meta><Icon name="msg" size={16} color={c.primaryText} /><Text style={s.h}>Transcript</Text></Meta>
+            {lines.length ? lines.map((l, i) => {
+              const ringo = l.role === "agent";
+              return (
+                <View key={i} style={{ alignSelf: ringo ? "flex-end" : "flex-start", maxWidth: "85%", backgroundColor: ringo ? c.primarySoft : c.card2, borderRadius: 14, borderBottomRightRadius: ringo ? 4 : 14, borderBottomLeftRadius: ringo ? 14 : 4, paddingVertical: 8, paddingHorizontal: 12 }}>
+                  <Text style={{ color: ringo ? c.primaryText : c.muted, fontSize: 11, fontWeight: "700", marginBottom: 2 }}>{ringo ? "Ringo" : l.role === "user" ? "You" : "Them"}</Text>
+                  <Text style={{ color: c.text, fontSize: 14, lineHeight: 20 }}>{l.text}</Text>
+                </View>
+              );
+            }) : <Empty icon="msg" text="No transcript yet." />}
+          </Card>
+        </ScrollView>
+      )}
+    </View>
   );
 }

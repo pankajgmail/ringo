@@ -6,6 +6,7 @@ export const c = {
   ok: "#34d399", okSoft: "rgba(16,185,129,.15)", warn: "#fbbf24", warnSoft: "rgba(245,158,11,.15)",
   bad: "#f87171", badSoft: "rgba(239,68,68,.15)", info: "#60a5fa", infoSoft: "rgba(59,130,246,.15)",
   high: "#f87171", medium: "#fbbf24", low: "#60a5fa",
+  border2: "#3a4363", borderOpen: "#343c5a",
 };
 export const radius = 16;
 export const space = (n: number) => n * 4;
