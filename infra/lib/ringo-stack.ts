@@ -254,6 +254,7 @@ export class RingoStack extends Stack {
           KMS_KEY_ID: dataKey.keyArn,
           RECORDINGS_BUCKET: recordings.bucketName,
           AUTH_DEV_BYPASS: "false",
+          ADMIN_EMAILS: (this.node.tryGetContext("adminEmails") as string | undefined) ?? "",
           DB_HOST: db.dbInstanceEndpointAddress,
           DB_PORT: db.dbInstanceEndpointPort,
           DB_NAME: "ringo",

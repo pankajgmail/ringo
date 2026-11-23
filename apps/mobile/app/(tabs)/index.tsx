@@ -75,7 +75,7 @@ export default function OutCall() {
     .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || +new Date(a.scheduledAt) - +new Date(b.scheduledAt)), [upcoming.data]);
   const done = history.data ?? [];
   const holdSaved = done.reduce((n, x) => n + (x.holdSec ?? 0), 0);
-  const profileIncomplete = !!me.data && !(me.data.name && me.data.phoneVerified);
+  const profileIncomplete = !!me.data && !(me.data.name && me.data.phoneVerified && me.data.zip);
   const cat = CATEGORY[category];
 
   const submit = () => {
@@ -107,7 +107,7 @@ export default function OutCall() {
           <Icon name="user" color={c.warn} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: c.text, fontWeight: "700" }}>Finish your profile</Text>
-            <Text style={s.meta}>Add your name and verify your phone so Ringo can call for you.</Text>
+            <Text style={s.meta}>Add your name and ZIP code, and verify your phone, so Ringo can call for you.</Text>
           </View>
           <Icon name="right" size={18} color={c.warn} />
         </Pressable>
@@ -117,7 +117,7 @@ export default function OutCall() {
 
       <Acc icon="plus" title="New call" sub="Ringo calls for you" {...section("new")}>
         <StepLabel>Who</StepLabel>
-        <WhoPicker mode={whoMode} onMode={setWhoMode} who={who} onWho={setWho} defaultNear={nearFrom(me.data?.address)} />
+        <WhoPicker mode={whoMode} onMode={setWhoMode} who={who} onWho={setWho} defaultNear={me.data?.zip || nearFrom(me.data?.address)} />
 
         <StepLabel>What</StepLabel>
         <View style={{ flexDirection: "row", gap: 8 }} accessibilityRole="radiogroup" accessibilityLabel="Call type">

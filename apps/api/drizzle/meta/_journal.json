@@ -15,6 +15,13 @@
       "when": 1795457506974,
       "tag": "0001_drop_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795461787956,
+      "tag": "0002_user_zip",
+      "breakpoints": true
     }
   ]
 }

@@ -9,7 +9,10 @@ export const ProfileSchema = z.object({
   name: z.string().trim().min(1).max(120),
   phone: e164,
   email: z.email(),
+  /** Optional; read to the business only when the goal needs it. */
   address: z.string().trim().max(300).default(""),
+  /** Required: business search looks near this ZIP. */
+  zip: z.string().trim().regex(/^\d{5}$/, "Enter your 5-digit ZIP code"),
   /** Only used to pick forwarding codes; the app no longer asks for it. */
   carrier: z.enum(CARRIERS).optional(),
   timezone: z.string().default("America/Los_Angeles"),

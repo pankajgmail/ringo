@@ -27,6 +27,8 @@ export const users = pgTable("users", {
   phone: text("phone"),
   phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
   address: text("address").notNull().default(""),
+  /** US ZIP for local business search (Google Places). Required in the profile form; the street address is optional. */
+  zip: text("zip").notNull().default(""),
   carrier: carrierEnum("carrier").notNull().default("att"),
   timezone: text("timezone").notNull().default("America/Los_Angeles"),
   /** Dedicated per-user number (decision D3). Identifies the user on forwarded inbound calls. */

@@ -10,8 +10,15 @@ export class ApiError extends Error {
 }
 
 export type Me = Profile & {
-  id: string; phoneVerified: boolean; ringoNumber: string | null; forwardingActive: boolean; monthlyBudgetCents: number;
+  id: string; isAdmin: boolean; phoneVerified: boolean; ringoNumber: string | null; forwardingActive: boolean; monthlyBudgetCents: number;
   forwarding: ReturnType<typeof forwardingCodes> | null;
+};
+
+export type AdminStats = {
+  signups: { total: number; last7d: number; verified: number };
+  users: { id: string; name: string; email: string; joinedAt: string; phoneVerified: boolean; outCalls: number; inCalls: number }[];
+  direction: { out: number; in: number };
+  outcomes: { completed: number; upcoming: number; live: number; failed: number; cancelled: number };
 };
 
 /** Business search result. kind "service" = a national brand's customer-service line. */
@@ -60,6 +67,7 @@ export function useApi() {
     places: (q: string, near?: string) =>
       req<{ configured: boolean; results: PlaceHit[] }>("GET", `/v1/places?q=${encodeURIComponent(q)}${near ? `&near=${encodeURIComponent(near)}` : ""}`),
     inCalls: () => req<InCall[]>("GET", "/v1/in-calls"),
+    adminStats: () => req<AdminStats>("GET", "/v1/admin/stats"),
     registerPush: (token: string, platform: "ios" | "android" | "web") => req("POST", "/v1/push-tokens", { token, platform }),
   };
 }

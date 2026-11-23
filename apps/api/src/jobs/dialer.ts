@@ -61,7 +61,7 @@ export async function placeCall(outCallId: string) {
       retell_llm_dynamic_variables: {
         user_name: user.name || "the account holder",
         user_phone: user.phone ?? "",
-        user_address: user.address,
+        user_address: user.address || (user.zip ? `ZIP code ${user.zip}` : ""),
         provider_name: call.name || PROVIDERS.find((p) => p.id === call.providerId)?.name || "",
         goal: call.goal,
         limits: call.limits || "None given. Ask the user before agreeing to anything not in the goal.",

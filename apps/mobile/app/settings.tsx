@@ -26,16 +26,18 @@ export default function Settings() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [zip, setZip] = useState("");
+  const [zipErr, setZipErr] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
 
   useEffect(() => {
     if (!me.data) return;
-    setName(me.data.name); setEmail(me.data.email); setPhone(me.data.phone ?? ""); setAddress(me.data.address);
+    setName(me.data.name); setEmail(me.data.email); setPhone(me.data.phone ?? ""); setAddress(me.data.address); setZip(me.data.zip ?? "");
   }, [me.data]);
 
   const save = useMutation({
-    mutationFn: () => api.saveProfile({ name: name.trim(), email: email.trim(), phone: toE164(phone), address, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+    mutationFn: () => api.saveProfile({ name: name.trim(), email: email.trim(), phone: toE164(phone), address: address.trim(), zip: zip.trim(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
     onSuccess: () => { toast("check", "Profile saved"); qc.invalidateQueries({ queryKey: ["me"] }); },
   });
   const sendCode = useMutation({ mutationFn: () => api.startPhoneVerify(toE164(phone)), onSuccess: () => { setCodeSent(true); toast("msg", "Code sent"); } });
@@ -63,13 +65,17 @@ export default function Settings() {
           </View>
 
           <Acc icon="user" title="Profile" sub={d?.phone ? fmtPhone(d.phone) : "Name, phone, email, address"}
-            right={d && !(d.name && d.phoneVerified) ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.amber }} /> : undefined} {...section("profile")}>
+            right={d && !(d.name && d.phoneVerified && d.zip) ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.amber }} /> : undefined} {...section("profile")}>
             <Field label="Full name" icon="user" value={name} onChangeText={setName} autoComplete="name" textContentType="name" />
             <Field label="Mobile number" icon="phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" />
             <Field label="Email" icon="mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-            <Field label="Address with ZIP (used to find businesses near you)" icon="pin" value={address} onChangeText={setAddress} autoComplete="street-address" />
+            <Field label="ZIP code (required, to find businesses near you)" icon="pin" value={zip} error={zipErr}
+              onChangeText={(v) => { setZip(v.replace(/\D/g, "").slice(0, 5)); setZipErr(""); }}
+              keyboardType="number-pad" autoComplete="postal-code" textContentType="postalCode" maxLength={5} />
+            <Field label="Street address (optional)" icon="pin" value={address} onChangeText={setAddress} autoComplete="street-address" textContentType="fullStreetAddress" />
             {save.error ? <ErrorBox error={save.error} /> : null}
-            <Button title="Save profile" icon="check" onPress={() => save.mutate()} busy={save.isPending} />
+            <Button title="Save profile" icon="check" busy={save.isPending}
+              onPress={() => { if (!/^\d{5}$/.test(zip.trim())) return setZipErr("Enter your 5-digit ZIP code"); save.mutate(); }} />
 
             {d?.phone && (!d.phoneVerified || phoneChanged) ? (
               <View style={[s.item, { marginTop: 12, borderColor: "rgba(251,191,36,.45)" }]}>
@@ -108,6 +114,7 @@ export default function Settings() {
           </Acc>
 
           <Acc icon="gear" title="Account" sub={d?.email} {...section("account")}>
+            {d?.isAdmin ? <Button title="Dashboard" icon="trend" kind="secondary" onPress={() => router.push("/admin")} /> : null}
             <Button title="Sign out" icon="back" kind="ghost" onPress={signOut} />
             <Button title="Delete my account" icon="trash" kind="danger" busy={delMe.isPending}
               onPress={async () => { if (await confirm("This permanently deletes your profile, call history, messages and recordings. It can't be undone.")) delMe.mutate(); }} />

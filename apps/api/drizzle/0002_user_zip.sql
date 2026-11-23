@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "zip" text DEFAULT '' NOT NULL;
