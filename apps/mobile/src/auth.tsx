@@ -8,18 +8,21 @@ import { config, devAuth } from "./config.ts";
 WebBrowser.maybeCompleteAuthSession();
 
 type Tokens = { idToken: string; refreshToken?: string; expiresAt: number };
+export type Provider = "Google" | "SignInWithApple";
 type Auth = {
-  ready: boolean; signedIn: boolean; signIn: () => Promise<void>; signOut: () => Promise<void>; getToken: () => Promise<string | null>;
+  ready: boolean; signedIn: boolean; signIn: (provider?: Provider) => Promise<void>; signOut: () => Promise<void>; getToken: () => Promise<string | null>;
   completeWebSignIn: (code: string, state: string) => Promise<void>;
 };
 
 const KEY = "ringo.tokens";
 const PENDING = "ringo.pendingSignIn"; // web only: PKCE verifier + state while the tab is away at Google
+// iOS Keychain: readable only after the first unlock, on this device only (not in iCloud or backups).
+const KEYCHAIN: SecureStore.SecureStoreOptions = { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY };
 // SecureStore is native-only. On web, tokens live in sessionStorage (cleared when the tab closes).
 const store = {
-  get: (): Promise<string | null> => (Platform.OS === "web" ? Promise.resolve(sessionStorage.getItem(KEY)) : SecureStore.getItemAsync(KEY)),
-  set: (v: string) => (Platform.OS === "web" ? Promise.resolve(sessionStorage.setItem(KEY, v)) : SecureStore.setItemAsync(KEY, v)),
-  del: () => (Platform.OS === "web" ? Promise.resolve(sessionStorage.removeItem(KEY)) : SecureStore.deleteItemAsync(KEY)),
+  get: (): Promise<string | null> => (Platform.OS === "web" ? Promise.resolve(sessionStorage.getItem(KEY)) : SecureStore.getItemAsync(KEY, KEYCHAIN)),
+  set: (v: string) => (Platform.OS === "web" ? Promise.resolve(sessionStorage.setItem(KEY, v)) : SecureStore.setItemAsync(KEY, v, KEYCHAIN)),
+  del: () => (Platform.OS === "web" ? Promise.resolve(sessionStorage.removeItem(KEY)) : SecureStore.deleteItemAsync(KEY, KEYCHAIN)),
 };
 
 const discovery = config.cognitoDomain
@@ -35,9 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     store.get().then((raw) => {
-      if (raw) setTokens(JSON.parse(raw) as Tokens);
+      try { if (raw) setTokens(JSON.parse(raw) as Tokens); } catch { void store.del(); }
       setReady(true);
-    });
+    }, () => setReady(true));
   }, []);
 
   const save = useCallback(async (t: Tokens | null) => {
@@ -46,12 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     else await store.del();
   }, []);
 
-  const signIn = useCallback(async () => {
+  const signIn = useCallback(async (provider: Provider = "Google") => {
     if (devAuth) return save({ idToken: "dev", expiresAt: Number.MAX_SAFE_INTEGER });
-    // identity_provider=Google skips Cognito's hosted page and goes straight to Google sign-in.
+    // identity_provider skips Cognito's hosted page and goes straight to Google or Apple.
     const req = new AuthSession.AuthRequest({
       clientId: config.cognitoClientId, redirectUri, scopes: ["openid", "email", "profile"], usePKCE: true,
-      extraParams: { identity_provider: "Google", prompt: "select_account" },
+      extraParams: { identity_provider: provider, ...(provider === "Google" ? { prompt: "select_account" } : {}) },
     });
     // On web, Google's headers cut a popup off from this tab, so redirect the whole tab instead.
     // Cognito sends it back to /auth, which calls completeWebSignIn.
@@ -61,7 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.location.assign(url);
       return;
     }
-    const res = await req.promptAsync(discovery!);
+    // Ephemeral session: no cookies shared with Safari, so the Google/Apple session doesn't linger on the device.
+    const res = await req.promptAsync(discovery!, { preferEphemeralSession: true });
     if (res.type === "error") throw res.error ?? new Error("sign-in failed");
     if (res.type !== "success") return; // user cancelled
     const t = await AuthSession.exchangeCodeAsync(
@@ -83,7 +87,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await save({ idToken: t.idToken!, refreshToken: t.refreshToken, expiresAt: Date.now() + (t.expiresIn ?? 3600) * 1000 });
   }, [save]);
 
-  const signOut = useCallback(() => save(null), [save]);
+  /** Revokes the refresh token at Cognito (so a copied token stops working), then forgets everything locally. */
+  const signOut = useCallback(async () => {
+    const rt = tokens?.refreshToken;
+    await save(null);
+    if (rt && discovery) {
+      await AuthSession.revokeAsync({ clientId: config.cognitoClientId, token: rt, tokenTypeHint: AuthSession.TokenTypeHint.RefreshToken }, discovery).catch(() => undefined);
+    }
+  }, [tokens, save]);
 
   const getToken = useCallback(async () => {
     if (!tokens) return null;

@@ -14,4 +14,8 @@ new RingoStack(app, `Ringo-${stage}`, {
   env: { account, region },
   domainName: app.node.tryGetContext("domainName") as string | undefined,
   googleClientId: googleClientId ?? "set-googleClientId.apps.googleusercontent.com",
+  // -c appleTeamId=… -c appleKeyId=… -c appleServicesId=…  (see docs/ios-launch.md)
+  apple: app.node.tryGetContext("appleTeamId")
+    ? { teamId: app.node.tryGetContext("appleTeamId"), keyId: app.node.tryGetContext("appleKeyId"), servicesId: app.node.tryGetContext("appleServicesId") }
+    : undefined,
 });

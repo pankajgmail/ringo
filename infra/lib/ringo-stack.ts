@@ -15,16 +15,23 @@ import * as route53 from "aws-cdk-lib/aws-route53";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
+import * as wafv2 from "aws-cdk-lib/aws-wafv2";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { existsSync } from "node:fs";
 import { Platform } from "aws-cdk-lib/aws-ecr-assets";
 import type { Construct } from "constructs";
 import { fileURLToPath } from "node:url";
+
+/** com.amazonaws.global.cloudfront.origin-facing per region (aws ec2 describe-managed-prefix-lists). */
+const CLOUDFRONT_PREFIX_LIST: Record<string, string> = { "us-east-1": "pl-3b927c52", "us-east-2": "pl-b6a144df", "us-west-2": "pl-82a045eb" };
 
 interface Props extends StackProps {
   stage: string;
   domainName?: string;
   /** Google OAuth web client ID. The client secret is passed at deploy time (see scripts/deploy.sh). */
   googleClientId: string;
+  /** Sign in with Apple (required by App Store guideline 4.8 when Google sign-in is offered). Private key comes from a NoEcho parameter. */
+  apple?: { teamId: string; keyId: string; servicesId: string };
 }
 
 /**
@@ -107,11 +114,30 @@ export class RingoStack extends Stack {
   return r;
 }`),
     });
+    // HSTS, no framing (clickjacking), no MIME sniffing, no referrer leaks, no camera/mic/location from the page.
+    const headers = new cloudfront.ResponseHeadersPolicy(this, "SecurityHeaders", {
+      securityHeadersBehavior: {
+        strictTransportSecurity: { accessControlMaxAge: Duration.days(365), includeSubdomains: true, override: true },
+        contentTypeOptions: { override: true },
+        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+        referrerPolicy: { referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN, override: true },
+        contentSecurityPolicy: {
+          override: true,
+          contentSecurityPolicy: [
+            "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
+            "font-src 'self' data:", "connect-src 'self' wss: https://*.amazoncognito.com", "frame-ancestors 'none'",
+            "base-uri 'self'", "form-action 'self' https://*.amazoncognito.com", "object-src 'none'",
+          ].join("; "),
+        },
+      },
+      customHeadersBehavior: { customHeaders: [{ header: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()", override: true }] },
+    });
     const web = new cloudfront.Distribution(this, "WebCdn", {
       defaultRootObject: "index.html",
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(webBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        responseHeadersPolicy: headers,
         functionAssociations: [{ function: rewrite, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }],
       },
       errorResponses: [{ httpStatus: 403, responseHttpStatus: 200, responsePagePath: "/index.html", ttl: Duration.seconds(0) }],
@@ -145,10 +171,34 @@ export class RingoStack extends Stack {
         fullname: cognito.ProviderAttribute.GOOGLE_NAME,
       },
     });
+    const idps = [cognito.UserPoolClientIdentityProvider.GOOGLE];
+    let apple: cognito.UserPoolIdentityProviderApple | undefined;
+    if (props.apple) {
+      const appleKey = new CfnParameter(this, "ApplePrivateKey", { type: "String", noEcho: true, description: `Sign in with Apple key (.p8 contents), from ${param("apple-private-key")}` });
+      apple = new cognito.UserPoolIdentityProviderApple(this, "Apple", {
+        userPool,
+        clientId: props.apple.servicesId,
+        teamId: props.apple.teamId,
+        keyId: props.apple.keyId,
+        privateKeyValue: SecretValue.cfnParameter(appleKey),
+        scopes: ["email", "name"],
+        attributeMapping: {
+          email: cognito.ProviderAttribute.APPLE_EMAIL,
+          emailVerified: cognito.ProviderAttribute.APPLE_EMAIL_VERIFIED,
+          fullname: cognito.ProviderAttribute.APPLE_NAME,
+        },
+      });
+      idps.push(cognito.UserPoolClientIdentityProvider.APPLE);
+    }
     const domain = userPool.addDomain("Hosted", { cognitoDomain: { domainPrefix: `ringo-${props.stage}-${this.account}` } });
     const appClient = userPool.addClient("App", {
       generateSecret: false, // public client (mobile + web), PKCE
-      supportedIdentityProviders: [cognito.UserPoolClientIdentityProvider.GOOGLE],
+      supportedIdentityProviders: idps,
+      // Short-lived ID tokens; refresh tokens last 30 days and are revoked on sign-out.
+      idTokenValidity: Duration.hours(1),
+      accessTokenValidity: Duration.hours(1),
+      refreshTokenValidity: Duration.days(30),
+      enableTokenRevocation: true,
       oAuth: {
         flows: { authorizationCodeGrant: true },
         scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE],
@@ -158,6 +208,7 @@ export class RingoStack extends Stack {
       preventUserExistenceErrors: true,
     });
     appClient.node.addDependency(google);
+    if (apple) appClient.node.addDependency(apple);
 
     // ---------- Third-party secrets (SecureString parameters, read by ECS when the task starts) ----------
     const s = (name: string) =>
@@ -183,6 +234,8 @@ export class RingoStack extends Stack {
       minHealthyPercent: 100,
       circuitBreaker: { rollback: true },
       publicLoadBalancer: true,
+      // Without a custom domain the ALB only speaks HTTP, so only CloudFront (HTTPS to users) may reach it.
+      openListener: !!apiHost,
       ...(zone && apiHost
         ? { domainName: apiHost, domainZone: zone, protocol: elbv2.ApplicationProtocol.HTTPS, redirectHTTP: true,
             certificate: new acm.Certificate(this, "ApiCert", { domainName: apiHost, validation: acm.CertificateValidation.fromDns(zone) }) }
@@ -226,17 +279,51 @@ export class RingoStack extends Stack {
     dataKey.grantEncryptDecrypt(api.taskDefinition.taskRole);
     dataKey.grant(api.taskDefinition.taskRole, "kms:GenerateDataKey");
     recordings.grantReadWrite(api.taskDefinition.taskRole);
+    // In-app account deletion removes the Cognito sign-in too.
+    api.taskDefinition.taskRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ["cognito-idp:ListUsers", "cognito-idp:AdminDeleteUser"],
+      resources: [userPool.userPoolArn],
+    }));
+
+    // ---------- Firewall (AWS WAF on the load balancer) ----------
+    // Covers both paths in: browsers/apps via CloudFront, and Retell webhooks direct to the ALB.
+    // Retell's webhooks and tools are signature-checked and carry free-form transcripts that generic
+    // XSS/size rules misread, so the content rules only look at app traffic (everything but /retell/).
+    const notRetell: wafv2.CfnWebACL.StatementProperty = {
+      notStatement: { statement: { byteMatchStatement: { fieldToMatch: { uriPath: {} }, positionalConstraint: "STARTS_WITH", searchString: "/retell/", textTransformations: [{ priority: 0, type: "NONE" }] } } },
+    };
+    const managed = (name: string, priority: number, excluded: string[] = [], appOnly = false): wafv2.CfnWebACL.RuleProperty => ({
+      name, priority, overrideAction: { none: {} },
+      statement: { managedRuleGroupStatement: { vendorName: "AWS", name, ruleActionOverrides: excluded.map((n) => ({ name: n, actionToUse: { count: {} } })), ...(appOnly ? { scopeDownStatement: notRetell } : {}) } },
+      visibilityConfig: { sampledRequestsEnabled: true, cloudWatchMetricsEnabled: true, metricName: name },
+    });
+    const waf = new wafv2.CfnWebACL(this, "ApiWaf", {
+      scope: "REGIONAL",
+      defaultAction: { allow: {} },
+      visibilityConfig: { sampledRequestsEnabled: true, cloudWatchMetricsEnabled: true, metricName: "ringo-api" },
+      rules: [
+        managed("AWSManagedRulesCommonRuleSet", 1, ["SizeRestrictions_BODY"], true),
+        managed("AWSManagedRulesKnownBadInputsRuleSet", 2, [], true),
+        managed("AWSManagedRulesAmazonIpReputationList", 3),
+        {
+          name: "RateLimitPerIp", priority: 10, action: { block: {} },
+          statement: { rateBasedStatement: { limit: 3000, evaluationWindowSec: 300, aggregateKeyType: "FORWARDED_IP", forwardedIpConfig: { headerName: "X-Forwarded-For", fallbackBehavior: "MATCH" } } },
+          visibilityConfig: { sampledRequestsEnabled: true, cloudWatchMetricsEnabled: true, metricName: "rate-limit" },
+        },
+      ],
+    });
+    new wafv2.CfnWebACLAssociation(this, "ApiWafAssoc", { resourceArn: api.loadBalancer.loadBalancerArn, webAclArn: waf.attrArn });
 
     // ---------- Web app: API behind CloudFront ----------
     const apiOrigin = new origins.LoadBalancerV2Origin(api.loadBalancer, {
       protocolPolicy: apiHost ? cloudfront.OriginProtocolPolicy.HTTPS_ONLY : cloudfront.OriginProtocolPolicy.HTTP_ONLY,
-      // 60s is CloudFront's default ceiling. Retell's ask_user tool waits up to 90s, so leave Retell's
-      // webhook and tool URLs on the ALB until that quota is raised.
+      // 60s is CloudFront's ceiling; the ask_user tool answers within 50s, so Retell can use HTTPS here too.
       readTimeout: Duration.seconds(60),
       keepaliveTimeout: Duration.seconds(60),
     });
     const apiBehavior: cloudfront.BehaviorOptions = {
       origin: apiOrigin,
+      responseHeadersPolicy: headers,
       viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
       allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
       cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
@@ -244,6 +331,12 @@ export class RingoStack extends Stack {
       originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
     };
     for (const path of ["/v1/*", "/retell/*", "/health"]) web.addBehavior(path, apiOrigin, apiBehavior);
+    if (!apiHost) {
+      // AWS-managed list of CloudFront origin-facing IPs (com.amazonaws.global.cloudfront.origin-facing).
+      const cfPrefixList = (this.node.tryGetContext("cloudFrontPrefixList") as string | undefined) ?? CLOUDFRONT_PREFIX_LIST[this.region];
+      if (!cfPrefixList) throw new Error(`Set -c cloudFrontPrefixList=pl-… for ${this.region}`);
+      api.loadBalancer.connections.allowFrom(ec2.Peer.prefixList(cfPrefixList), ec2.Port.tcp(80), "CloudFront only");
+    }
 
     // Upload the exported web app if it has been built (scripts/deploy.sh builds it first).
     const webDist = fileURLToPath(new URL("../../apps/mobile/dist", import.meta.url));

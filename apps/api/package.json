@@ -13,6 +13,7 @@
     "retell:setup": "tsx --env-file=.env scripts/setup-retell.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1173.0",
     "@aws-sdk/client-kms": "^3.1164.0",
     "@fastify/cors": "^11.4.1",
     "@fastify/rate-limit": "^11.2.2",

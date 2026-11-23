@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { Account, AccountInput, Answer, InCall, OutCall, OutCallInput, Profile, TranscriptLine, forwardingCodes } from "@ringo/shared";
+import type { Answer, InCall, OutCall, OutCallInput, Profile, TranscriptLine, forwardingCodes } from "@ringo/shared";
 import { config, devAuth } from "./config.ts";
 import { useAuth } from "./auth.tsx";
 
@@ -52,9 +52,6 @@ export function useApi() {
     checkPhoneVerify: (phone: string, code: string) => req("POST", "/v1/me/phone/check", { phone, code }),
     setForwarding: (active: boolean) => req("PUT", "/v1/me/forwarding", { active }),
     deleteMe: () => req("DELETE", "/v1/me"),
-    accounts: () => req<Account[]>("GET", "/v1/accounts"),
-    saveAccount: (a: AccountInput) => req("PUT", "/v1/accounts", a),
-    deleteAccount: (id: string) => req("DELETE", `/v1/accounts/${id}`),
     calls: (status: "upcoming" | "history") => req<OutCall[]>("GET", `/v1/calls?status=${status}`),
     call: (id: string) => req<OutCall & { transcript: TranscriptLine[] }>("GET", `/v1/calls/${id}`),
     createCall: (c: OutCallInput) => req<OutCall>("POST", "/v1/calls", c),

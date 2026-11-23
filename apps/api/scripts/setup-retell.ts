@@ -9,6 +9,8 @@ import { env } from "../src/env.ts";
 import { BOOKING_PROMPT, INBOUND_PROMPT, OUTBOUND_PROMPT } from "../../../retell/prompts.ts";
 
 const base = env.PUBLIC_URL.replace(/\/$/, "");
+// Retell sends call details and transcripts to these URLs, so they must be HTTPS.
+if (!base.startsWith("https://")) throw new Error(`PUBLIC_URL must be https:// (got ${base}). Use the CloudFront URL or the API domain.`);
 const MODEL = "gpt-5.4-mini" as const;
 const VOICE = "11labs-Adrian";
 
@@ -28,11 +30,10 @@ const reportStatus = tool("report_status", "Report call progress so the user can
   stage: { type: "string", enum: ["menu", "hold", "talk"] },
   note: { type: "string", description: "Short note, e.g. 'Pressed 2 for billing'" },
 }, ["stage"]);
-const getAccount = tool("get_account", "Get the account number, holder name and PIN for the provider being called.", {}, []);
-const askUser = tool("ask_user", "Ask the account holder a question in real time and wait up to 90 seconds for their answer.", {
+const askUser = tool("ask_user", "Ask the account holder a question in real time and wait up to 50 seconds for their answer.", {
   question: { type: "string", description: "One short sentence the user will see on their phone." },
   kind: { type: "string", enum: ["decision", "code"], description: "'code' when you need a one-time code they received by text." },
-}, ["question"], 120_000);
+}, ["question"], 58_000);
 
 const endCall = { type: "end_call" as const, name: "end_call", description: "End the call when the goal is done or cannot be done." };
 const pressDigit = { type: "press_digit" as const, name: "press_digit", description: "Press keypad digits to navigate phone menus." };
@@ -76,7 +77,7 @@ async function upsert(name: string, prompt: string, tools: unknown[], analysis: 
   return agent.agent_id;
 }
 
-const outbound = await upsert("ringo-outbound", OUTBOUND_PROMPT, [reportStatus, getAccount, askUser, pressDigit, endCall], outcomeFields);
+const outbound = await upsert("ringo-outbound", OUTBOUND_PROMPT, [reportStatus, askUser, pressDigit, endCall], outcomeFields);
 const booking = await upsert("ringo-booking", BOOKING_PROMPT, [askUser, pressDigit, endCall], outcomeFields);
 const inbound = await upsert("ringo-inbound", INBOUND_PROMPT, [endCall], inboundFields, { end_call_after_silence_ms: 20_000 });
 
@@ -84,6 +85,17 @@ console.log(`RETELL_OUTBOUND_AGENT_ID=${outbound}\nRETELL_BOOKING_AGENT_ID=${boo
 
 const i = process.argv.indexOf("--import");
 const number = i > 0 ? process.argv[i + 1] : undefined;
+// --update +1…: re-point an already imported number at the current agents and webhook URL.
+const u = process.argv.indexOf("--update");
+const existingNumber = u > 0 ? process.argv[u + 1] : undefined;
+if (existingNumber) {
+  await retell.phoneNumber.update(existingNumber, {
+    inbound_agents: [{ agent_id: inbound, weight: 1 }],
+    outbound_agents: [{ agent_id: outbound, weight: 1 }],
+    inbound_webhook_url: `${base}/retell/inbound`,
+  });
+  console.log(`Updated ${existingNumber} in Retell`);
+}
 if (number) {
   if (!env.TWILIO_TERMINATION_URI) throw new Error("Set TWILIO_TERMINATION_URI (see docs/setup.md, Twilio SIP trunk)");
   await retell.phoneNumber.import({

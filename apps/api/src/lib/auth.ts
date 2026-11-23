@@ -18,11 +18,17 @@ const verifier = env.COGNITO_USER_POOL_ID
 
 type Identity = { providerName?: string };
 
-/** Ringo only accepts users who signed in with Google (federated through Cognito) and have a verified email. */
-export function isGoogleSignIn(claims: Record<string, unknown>): boolean {
+/** Cognito's names for the identity providers Ringo allows. No passwords: native Cognito users are refused. */
+const TRUSTED_IDPS = new Set(["Google", "SignInWithApple"]);
+
+/** Ringo only accepts users who signed in with Google or Apple (federated through Cognito) and have an email. */
+export function isTrustedSignIn(claims: Record<string, unknown>): boolean {
   const identities = Array.isArray(claims.identities) ? (claims.identities as Identity[]) : [];
+  const idp = identities.find((i) => TRUSTED_IDPS.has(i.providerName ?? ""));
+  if (!idp || typeof claims.email !== "string") return false;
+  // Apple only returns verified addresses (or a private relay), and Cognito doesn't always map the flag.
   const verified = claims.email_verified === true || claims.email_verified === "true";
-  return identities.some((i) => i.providerName === "Google") && verified && typeof claims.email === "string";
+  return verified || idp.providerName === "SignInWithApple";
 }
 
 /** Verifies the Cognito ID token and loads (or creates on first login) the user row. */
@@ -35,7 +41,7 @@ export async function userFromToken(token: string | undefined, devUser?: string)
     if (!verifier || !token) return null;
     try {
       const claims = await verifier.verify(token);
-      if (!isGoogleSignIn(claims)) return null;
+      if (!isTrustedSignIn(claims)) return null;
       sub = claims.sub;
       email = String(claims.email);
       name = typeof claims.name === "string" ? claims.name : "";

@@ -2,7 +2,6 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, eq, isNull } from "drizzle-orm";
 import { IN_CALL_TYPES, OUTCOMES, STAGES, type InCallType, type Outcome, type Stage, type TranscriptLine } from "@ringo/shared";
 import { db, schema } from "../db/client.ts";
-import { decrypt } from "../lib/crypto.ts";
 import { audit } from "../lib/audit.ts";
 import { finish, maybeRedial } from "../jobs/dialer.ts";
 import { verifyRetell } from "../services/retell.ts";
@@ -30,7 +29,8 @@ type RetellCall = {
   retell_llm_dynamic_variables?: Record<string, string>;
 };
 
-const ASK_TIMEOUT_MS = 90_000; // tool timeout in the agent config must be larger (120s)
+// Retell reaches the API over HTTPS through CloudFront, which ends requests after 60s, so answer before that.
+const ASK_TIMEOUT_MS = 50_000; // tool timeout in the agent config is 58s
 
 async function verified(req: FastifyRequest) {
   return verifyRetell((req as FastifyRequest & { rawBody: string }).rawBody, req.headers["x-retell-signature"] as string | undefined);
@@ -138,25 +138,6 @@ export async function retellRoutes(app: FastifyInstance) {
     publish(row.userId, { type: "call.stage", callId: row.id, stage, line: args.note ?? "" });
     if (stage === "talk" && row.stage === "hold") await push(row.userId, `${row.name} picked up`, "Ringo is talking to a person now.", { outCallId: row.id });
     return { ok: true };
-  });
-
-  /**
-   * Agent needs the account details it was not given up front. Only returns the account
-   * for the provider being called, and logs every access.
-   */
-  app.post("/retell/tools/get_account", async (req) => {
-    const { call } = req.body as { call: RetellCall };
-    const row = await outCallFor(call);
-    if (!row) return { found: false };
-    const [acct] = await db.select().from(schema.accounts).where(and(eq(schema.accounts.userId, row.userId), eq(schema.accounts.providerId, row.providerId)));
-    if (!acct) return { found: false, message: "No saved account. Ask the rep to look the account up by phone number, or use ask_user." };
-    await audit(row.userId, "account.read_by_agent", { outCallId: row.id, providerId: row.providerId });
-    return {
-      found: true,
-      account_number: await decrypt(acct.accountNumberEnc, { userId: row.userId, field: "account" }),
-      holder_name: acct.holderName ?? "",
-      pin: acct.pinEnc ? await decrypt(acct.pinEnc, { userId: row.userId, field: "pin" }) : "",
-    };
   });
 
   /**

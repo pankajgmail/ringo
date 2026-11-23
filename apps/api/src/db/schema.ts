@@ -1,9 +1,8 @@
 import { sql } from "drizzle-orm";
-import { boolean, customType, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { ASK_ME, CARRIERS, CATEGORIES, IN_CALL_TYPES, OUTCOMES, OUT_CALL_STATUSES, PRIORITIES, STAGES } from "@ringo/shared";
 import type { TranscriptLine } from "@ringo/shared";
 
-const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 
 export const carrierEnum = pgEnum("carrier", CARRIERS);
 export const categoryEnum = pgEnum("call_category", CATEGORIES);
@@ -38,18 +37,6 @@ export const users = pgTable("users", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   ...timestamps,
 });
-
-/** Per-provider account details. Sensitive values are KMS envelope-encrypted. */
-export const accounts = pgTable("accounts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  providerId: text("provider_id").notNull(),
-  accountNumberEnc: bytea("account_number_enc").notNull(),
-  accountNumberLast4: text("account_number_last4").notNull(),
-  holderName: text("holder_name"),
-  pinEnc: bytea("pin_enc"),
-  ...timestamps,
-}, (t) => [uniqueIndex("accounts_user_provider_uq").on(t.userId, t.providerId)]);
 
 export const outCalls = pgTable("out_calls", {
   id: uuid("id").primaryKey().defaultRandom(),

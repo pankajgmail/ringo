@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import twilio from "twilio";
-import { AccountInputSchema, PhoneVerifyCheckSchema, PhoneVerifyStartSchema, ProfileSchema, PushTokenSchema, forwardingCodes } from "@ringo/shared";
+import { ForwardingSchema, PhoneVerifyCheckSchema, PhoneVerifyStartSchema, ProfileSchema, PushTokenSchema, forwardingCodes } from "@ringo/shared";
 import { db, schema } from "../db/client.ts";
 import { env } from "../env.ts";
 import { audit } from "../lib/audit.ts";
-import { encrypt } from "../lib/crypto.ts";
+import { deleteAccount } from "../lib/delete-account.ts";
 
 const verify = env.TWILIO_VERIFY_SERVICE_SID && env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN ? twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN).verify.v2.services(env.TWILIO_VERIFY_SERVICE_SID) : null;
 
@@ -46,35 +46,8 @@ export async function meRoutes(app: FastifyInstance) {
   });
 
   app.put("/v1/me/forwarding", async (req) => {
-    const { active } = req.body as { active: boolean };
-    await db.update(schema.users).set({ forwardingActive: !!active }).where(eq(schema.users.id, req.user.id));
-    return { ok: true };
-  });
-
-  app.get("/v1/accounts", async (req) => {
-    const rows = await db.select().from(schema.accounts).where(eq(schema.accounts.userId, req.user.id));
-    return rows.map((a) => ({ id: a.id, providerId: a.providerId, accountNumberLast4: a.accountNumberLast4, holderName: a.holderName, hasPin: !!a.pinEnc }));
-  });
-
-  app.put("/v1/accounts", async (req) => {
-    const a = AccountInputSchema.parse(req.body);
-    const ctx = { userId: req.user.id, field: "account" };
-    const values = {
-      userId: req.user.id,
-      providerId: a.providerId,
-      accountNumberEnc: await encrypt(a.accountNumber, ctx),
-      accountNumberLast4: a.accountNumber.slice(-4),
-      holderName: a.holderName ?? null,
-      pinEnc: a.pin ? await encrypt(a.pin, { userId: req.user.id, field: "pin" }) : null,
-    };
-    await db.insert(schema.accounts).values(values).onConflictDoUpdate({ target: [schema.accounts.userId, schema.accounts.providerId], set: values });
-    await audit(req.user.id, "account.saved", { providerId: a.providerId });
-    return { ok: true };
-  });
-
-  app.delete<{ Params: { id: string } }>("/v1/accounts/:id", async (req) => {
-    await db.delete(schema.accounts).where(and(eq(schema.accounts.id, req.params.id), eq(schema.accounts.userId, req.user.id)));
-    await audit(req.user.id, "account.deleted", { id: req.params.id });
+    const { active } = ForwardingSchema.parse(req.body);
+    await db.update(schema.users).set({ forwardingActive: active }).where(eq(schema.users.id, req.user.id));
     return { ok: true };
   });
 
@@ -84,12 +57,12 @@ export async function meRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  /** App Store guideline 5.1.1(v): in-app account deletion. Soft-delete now; a nightly job purges data and releases the number. */
-  app.delete("/v1/me", async (req) => {
-    await db.update(schema.users).set({ deletedAt: new Date(), forwardingActive: false }).where(eq(schema.users.id, req.user.id));
-    await db.delete(schema.accounts).where(eq(schema.accounts.userId, req.user.id));
-    await db.delete(schema.pushTokens).where(eq(schema.pushTokens.userId, req.user.id));
-    await audit(req.user.id, "user.deleted");
+  /**
+   * App Store guideline 5.1.1(v): in-app account deletion. Ends live calls, then deletes the user row
+   * (calls, messages, questions and push tokens cascade) and the Cognito sign-in. Not a soft delete.
+   */
+  app.delete("/v1/me", { config: { rateLimit: { max: 5, timeWindow: "1 hour" } } }, async (req) => {
+    await deleteAccount(req.user);
     return { ok: true };
   });
 }

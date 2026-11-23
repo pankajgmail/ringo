@@ -1,0 +1,19 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "base": {
+      "node": "24.22.1",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dhab8f4nxogwy.cloudfront.net",
+        "EXPO_PUBLIC_WEB_URL": "https://dhab8f4nxogwy.cloudfront.net",
+        "EXPO_PUBLIC_COGNITO_DOMAIN": "https://ringo-dev-334076860223.auth.us-east-2.amazoncognito.com",
+        "EXPO_PUBLIC_COGNITO_CLIENT_ID": "40nfe04h21u1nu9nj2q67omgf9",
+        "EXPO_PUBLIC_DEV_USER": ""
+      }
+    },
+    "development": { "extends": "base", "developmentClient": true, "distribution": "internal", "ios": { "simulator": true } },
+    "preview": { "extends": "base", "distribution": "internal", "env": { "EXPO_PUBLIC_APPLE_SIGN_IN": "false" } },
+    "production": { "extends": "base", "autoIncrement": true, "env": { "EXPO_PUBLIC_APPLE_SIGN_IN": "true" } }
+  },
+  "submit": { "production": { "ios": { "ascAppId": "SET_AFTER_CREATING_THE_APP_IN_APP_STORE_CONNECT" } } }
+}

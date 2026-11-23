@@ -110,7 +110,7 @@ export default function Settings() {
           <Acc icon="gear" title="Account" sub={d?.email} {...section("account")}>
             <Button title="Sign out" icon="back" kind="ghost" onPress={signOut} />
             <Button title="Delete my account" icon="trash" kind="danger" busy={delMe.isPending}
-              onPress={async () => { if (await confirm("This deletes your profile, saved accounts and call history.")) delMe.mutate(); }} />
+              onPress={async () => { if (await confirm("This permanently deletes your profile, call history, messages and recordings. It can't be undone.")) delMe.mutate(); }} />
             {delMe.error ? <ErrorBox error={delMe.error} /> : null}
           </Acc>
         </ScrollView>

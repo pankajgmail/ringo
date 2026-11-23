@@ -14,7 +14,12 @@ import { attach } from "./services/live.ts";
 
 export async function buildApp() {
   const app = Fastify({
-    logger: { level: env.NODE_ENV === "production" ? "info" : "debug", redact: ["req.headers.authorization", "req.headers[\"x-retell-signature\"]"] },
+    logger: {
+      level: env.NODE_ENV === "production" ? "info" : "debug",
+      redact: ["req.headers.authorization", "req.headers[\"x-retell-signature\"]"],
+      // /v1/live carries the sign-in token in the query string (browsers can't set WebSocket headers). Never log it.
+      serializers: { req: (r) => ({ method: r.method, url: r.url.replace(/([?&](token|dev)=)[^&]*/g, "$1[redacted]"), remoteAddress: r.ip }) },
+    },
     trustProxy: true,
     // ask_user long-polls up to ~90s
     requestTimeout: 120_000,
@@ -38,8 +43,14 @@ export async function buildApp() {
     return reply.code(status).send({ error: status >= 500 ? "internal_error" : e.message });
   });
 
-  // @fastify/cors defaults to GET,HEAD,POST; the app also uses PUT and DELETE.
-  await app.register(cors, { origin: true, credentials: true, methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] });
+  // The web app is served from the same origin and the iOS/Android apps send no Origin header,
+  // so only the app's own origin (and the local dev server) may call the API from a browser.
+  const origins = [new URL(env.PUBLIC_URL).origin, ...env.EXTRA_WEB_ORIGINS, ...(env.NODE_ENV === "production" ? [] : ["http://localhost:8081"])];
+  await app.register(cors, { origin: origins, methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] });
+  app.addHook("onSend", async (_req, reply) => {
+    reply.header("cache-control", "no-store");
+    reply.header("x-content-type-options", "nosniff");
+  });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
   await app.register(websocket);
 

@@ -16,23 +16,7 @@ export const ProfileSchema = z.object({
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 
-export const AccountInputSchema = z.object({
-  providerId: z.string().min(1),
-  accountNumber: z.string().trim().min(1).max(64),
-  holderName: z.string().trim().max(120).optional(),
-  /** Stored encrypted (KMS envelope). Never returned by the API. */
-  pin: z.string().trim().max(32).optional(),
-});
-export type AccountInput = z.infer<typeof AccountInputSchema>;
-
-export const AccountSchema = z.object({
-  id: z.uuid(),
-  providerId: z.string(),
-  accountNumberLast4: z.string(),
-  holderName: z.string().nullable(),
-  hasPin: z.boolean(),
-});
-export type Account = z.infer<typeof AccountSchema>;
+export const ForwardingSchema = z.object({ active: z.boolean() });
 
 export const ReservationSchema = z.object({
   date: z.iso.date(),

@@ -28,6 +28,8 @@ const Env = z
     DEFAULT_FROM_NUMBER: z.string().default(""),
     /** Google Places API (New) key for business search. Empty: only the built-in national brands are searchable. */
     GOOGLE_PLACES_API_KEY: z.string().default(""),
+    /** Comma-separated extra browser origins allowed by CORS, e.g. a custom app domain. */
+    EXTRA_WEB_ORIGINS: z.string().default("").transform((v) => v.split(",").map((x) => x.trim()).filter(Boolean)),
     MAX_CALL_MINUTES: z.coerce.number().default(120),
     MAX_CONCURRENT_CALLS_PER_USER: z.coerce.number().default(2),
   })
