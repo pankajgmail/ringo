@@ -1,4 +1,5 @@
 import { Linking, Platform, ScrollView, Text, View } from "react-native";
+import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import { useEffect, useState } from "react";
 import { Pressable } from "react-native";
@@ -37,6 +38,46 @@ const Step = ({ n, title }: { n: number; title: string }) => (
   </View>
 );
 
+/** Shown until the user has a number: one tap buys a local number just for them. */
+function GetNumber({ phoneVerified, available }: { phoneVerified: boolean; available: boolean }) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const get = useMutation({
+    mutationFn: api.getNumber,
+    onSuccess: () => { toast("check-circle", "Your assistant number is ready"); qc.invalidateQueries({ queryKey: ["me"] }); },
+  });
+  return (
+    <ScrollView contentContainerStyle={s.scroll}>
+      <Card>
+        <View style={{ alignItems: "center", gap: 8, paddingVertical: 6 }}>
+          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: c.primarySoft, alignItems: "center", justifyContent: "center" }}>
+            <Icon name="smartphone" size={26} color={c.primaryText} />
+          </View>
+          <Text style={[s.h, { textAlign: "center" }]}>Get your assistant number</Text>
+          <Text style={[s.muted, { textAlign: "center" }]}>
+            Ringo gives you your own local number. Forward your missed calls to it and Ringo answers, screens spam and takes messages for you.
+          </Text>
+        </View>
+        {!phoneVerified ? (
+          <>
+            <Meta><Icon name="shield" size={14} color={c.warn} /><MetaText color={c.warn}>Verify your mobile number first, so the number is linked to you.</MetaText></Meta>
+            <Button title="Go to Settings" icon="gear" kind="secondary" onPress={() => router.push("/settings")} />
+          </>
+        ) : !available ? (
+          <Meta><Icon name="clock" size={14} color={c.muted} /><MetaText>Assistant numbers aren't switched on yet. Check back soon.</MetaText></Meta>
+        ) : (
+          <>
+            <Button title={get.isPending ? "Setting up your number…" : "Get my number"} icon="plus" busy={get.isPending} onPress={() => get.mutate()} />
+            <Meta><Icon name="alert" size={12} color={c.muted} /><MetaText>Takes a few seconds. The number is yours until you delete your account.</MetaText></Meta>
+          </>
+        )}
+        {get.error ? <ErrorBox error={get.error} /> : null}
+      </Card>
+    </ScrollView>
+  );
+}
+
 export default function Forwarding() {
   const api = useApi();
   const qc = useQueryClient();
@@ -55,8 +96,8 @@ export default function Forwarding() {
     <View style={s.screen}>
       <PageHeader title="Call forwarding" sub={d?.ringoNumber ? `Missed calls → ${fmtPhone(d.ringoNumber)}` : undefined}
         right={d ? <Pill text={d.forwardingActive ? "On" : "Off"} icon={d.forwardingActive ? "check" : "x"} color={d.forwardingActive ? c.ok : c.muted} bg={d.forwardingActive ? c.okSoft : "#232a3f"} /> : undefined} />
-      {me.isLoading ? <Loading /> : me.error ? <View style={s.scroll}><ErrorBox error={me.error} onRetry={me.refetch} /></View> : !d || !f ? (
-        <View style={s.scroll}><ErrorBox error={new Error("No Ringo number assigned yet")} /></View>
+      {me.isLoading ? <Loading /> : me.error ? <View style={s.scroll}><ErrorBox error={me.error} onRetry={me.refetch} /></View> : !d ? null : !f ? (
+        <GetNumber phoneVerified={d.phoneVerified} available={d.numbersAvailable} />
       ) : (
         <ScrollView contentContainerStyle={s.scroll}>
           <Card>

@@ -6,6 +6,7 @@ import { retell, retellConfigured } from "../services/retell.ts";
 import { boss, QUEUE } from "../jobs/queue.ts";
 import type { User } from "./auth.ts";
 import { audit } from "./audit.ts";
+import { releaseNumber } from "../services/numbers.ts";
 
 const cognito = env.COGNITO_USER_POOL_ID ? new CognitoIdentityProviderClient({}) : null;
 const LIVE = ["dialing", "in_progress", "awaiting_user"] as const;
@@ -30,6 +31,9 @@ export async function deleteAccount(user: User) {
   // Queued jobs would be no-ops anyway (placeCall skips missing rows); cancel them so nothing dials.
   const jobs = out.map((c) => c.jobId).filter((x): x is string => !!x);
   if (jobs.length) await boss.cancel(QUEUE.placeCall, jobs).catch(() => undefined);
+
+  // The user's own assistant number goes back to Twilio so it stops billing (and can't receive their calls).
+  await releaseNumber(user);
 
   await db.transaction(async (tx) => {
     await tx.update(schema.auditLog).set({ detail: null }).where(eq(schema.auditLog.userId, user.id));

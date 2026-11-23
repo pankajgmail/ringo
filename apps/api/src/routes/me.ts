@@ -7,6 +7,7 @@ import { env } from "../env.ts";
 import { audit } from "../lib/audit.ts";
 import { deleteAccount } from "../lib/delete-account.ts";
 import { isAdmin } from "./admin.ts";
+import { NumberError, numbersConfigured, provisionNumber } from "../services/numbers.ts";
 
 const verify = env.TWILIO_VERIFY_SERVICE_SID && env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN ? twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN).verify.v2.services(env.TWILIO_VERIFY_SERVICE_SID) : null;
 
@@ -16,7 +17,7 @@ export async function meRoutes(app: FastifyInstance) {
     return {
       id: u.id, name: u.name, email: u.email, phone: u.phone, phoneVerified: !!u.phoneVerifiedAt, address: u.address, zip: u.zip, isAdmin: isAdmin(u),
       carrier: u.carrier, timezone: u.timezone, ringoNumber: u.ringoNumber, forwardingActive: u.forwardingActive,
-      monthlyBudgetCents: u.monthlyBudgetCents,
+      monthlyBudgetCents: u.monthlyBudgetCents, numbersAvailable: numbersConfigured(),
       forwarding: u.ringoNumber ? forwardingCodes(u.carrier, u.ringoNumber) : null,
     };
   });
@@ -44,6 +45,17 @@ export async function meRoutes(app: FastifyInstance) {
     await db.update(schema.users).set({ phone, phoneVerifiedAt: new Date() }).where(eq(schema.users.id, req.user.id));
     await audit(req.user.id, "phone.verified", { phone });
     return { ok: true };
+  });
+
+  /** "Get your assistant number": buys a local number for this user the first time they open Forwarding. */
+  app.post("/v1/me/number", { config: { rateLimit: { max: 3, timeWindow: "1 hour" } } }, async (req, reply) => {
+    try {
+      return { ringoNumber: await provisionNumber(req.user) };
+    } catch (e) {
+      if (e instanceof NumberError) return reply.code(e.statusCode).send({ error: e.message });
+      req.log.error({ err: e }, "[numbers] provisioning failed");
+      return reply.code(502).send({ error: "Couldn't set up your number. Please try again in a few minutes." });
+    }
   });
 
   app.put("/v1/me/forwarding", async (req) => {

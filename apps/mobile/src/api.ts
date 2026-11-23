@@ -10,7 +10,7 @@ export class ApiError extends Error {
 }
 
 export type Me = Profile & {
-  id: string; isAdmin: boolean; phoneVerified: boolean; ringoNumber: string | null; forwardingActive: boolean; monthlyBudgetCents: number;
+  id: string; isAdmin: boolean; numbersAvailable: boolean; phoneVerified: boolean; ringoNumber: string | null; forwardingActive: boolean; monthlyBudgetCents: number;
   forwarding: ReturnType<typeof forwardingCodes> | null;
 };
 
@@ -57,6 +57,7 @@ export function useApi() {
     saveProfile: (p: Profile) => req<{ ok: true; phoneVerified: boolean }>("PUT", "/v1/me", p),
     startPhoneVerify: (phone: string) => req("POST", "/v1/me/phone/verify", { phone }),
     checkPhoneVerify: (phone: string, code: string) => req("POST", "/v1/me/phone/check", { phone, code }),
+    getNumber: () => req<{ ringoNumber: string }>("POST", "/v1/me/number"),
     setForwarding: (active: boolean) => req("PUT", "/v1/me/forwarding", { active }),
     deleteMe: () => req("DELETE", "/v1/me"),
     calls: (status: "upcoming" | "history") => req<OutCall[]>("GET", `/v1/calls?status=${status}`),

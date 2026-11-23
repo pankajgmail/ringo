@@ -92,7 +92,7 @@ export default function Settings() {
             ) : null}
           </Acc>
 
-          <Acc icon="signal" title="Your Ringo line" sub={d?.ringoNumber ? fmtPhone(d.ringoNumber) : "Not assigned yet"}
+          <Acc icon="signal" title="Your Ringo line" sub={d?.ringoNumber ? fmtPhone(d.ringoNumber) : "No number yet"}
             right={d?.forwardingActive ? <Pill text="Forwarding" icon="check" color={c.ok} bg={c.okSoft} /> : undefined} {...section("line")}>
             {d?.ringoNumber ? (
               <>
@@ -110,7 +110,16 @@ export default function Settings() {
                   <Icon name="right" size={16} color={c.muted} />
                 </Pressable>
               </>
-            ) : <Text style={s.muted}>You'll get a Ringo number once your account is set up.</Text>}
+            ) : (
+              <Pressable onPress={() => router.push("/forwarding")} accessibilityRole="button" style={[s.item, { flexDirection: "row", alignItems: "center", gap: 10 }]}>
+                <Icon name="plus" color={c.primaryText} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text, fontWeight: "700" }}>Get your assistant number</Text>
+                  <Text style={s.meta}>Your own number for Ringo to answer missed calls</Text>
+                </View>
+                <Icon name="right" size={16} color={c.muted} />
+              </Pressable>
+            )}
           </Acc>
 
           <Acc icon="gear" title="Account" sub={d?.email} {...section("account")}>

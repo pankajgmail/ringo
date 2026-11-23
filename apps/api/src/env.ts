@@ -32,6 +32,8 @@ const Env = z
     EXTRA_WEB_ORIGINS: z.string().default("").transform((v) => v.split(",").map((x) => x.trim()).filter(Boolean)),
     /** Comma-separated emails that can open the admin dashboard (sign-ups, call stats). */
     ADMIN_EMAILS: z.string().default("").transform((v) => v.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean)),
+    /** Cap on assistant numbers Ringo buys (each is a monthly Twilio + Retell charge). */
+    MAX_RINGO_NUMBERS: z.coerce.number().default(25),
     MAX_CALL_MINUTES: z.coerce.number().default(120),
     MAX_CONCURRENT_CALLS_PER_USER: z.coerce.number().default(2),
   })

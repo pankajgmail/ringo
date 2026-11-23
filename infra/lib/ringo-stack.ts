@@ -269,6 +269,11 @@ export class RingoStack extends Stack {
           TWILIO_ACCOUNT_SID: s("TWILIO_ACCOUNT_SID"),
           TWILIO_AUTH_TOKEN: s("TWILIO_AUTH_TOKEN"),
           TWILIO_VERIFY_SERVICE_SID: s("TWILIO_VERIFY_SERVICE_SID"),
+          // SIP trunk, for buying per-user assistant numbers and importing them into Retell.
+          TWILIO_SIP_TRUNK_SID: s("TWILIO_SIP_TRUNK_SID"),
+          TWILIO_TERMINATION_URI: s("TWILIO_TERMINATION_URI"),
+          TWILIO_SIP_USERNAME: s("TWILIO_SIP_USERNAME"),
+          TWILIO_SIP_PASSWORD: s("TWILIO_SIP_PASSWORD"),
           DEFAULT_FROM_NUMBER: s("DEFAULT_FROM_NUMBER"),
           GOOGLE_PLACES_API_KEY: s("GOOGLE_PLACES_API_KEY"),
         },
