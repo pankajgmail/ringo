@@ -52,7 +52,7 @@ const inboundFields = [
 async function upsert(name: string, prompt: string, tools: unknown[], analysis: unknown[], extra: Record<string, unknown> = {}) {
   const match = (await retell.agent.list({ limit: 1000 })).items.find((a) => a.agent_name === name);
   const existing = match ? await retell.agent.retrieve(match.agent_id) : undefined;
-  const llmBody = { model: MODEL, general_prompt: prompt, general_tools: tools as never, start_speaker: "user" as const };
+  const llmBody = { model_config: { type: "cascading" as const, primary: { model: MODEL, tier: "standard" as const } }, general_prompt: prompt, general_tools: tools as never, start_speaker: "user" as const };
   const agentBody = {
     agent_name: name,
     voice_id: VOICE,
