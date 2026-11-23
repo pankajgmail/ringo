@@ -56,7 +56,7 @@ export async function placeCall(outCallId: string) {
       from_number: from,
       to_number: call.number,
       override_agent_id: agentId,
-      idempotency_key: `${call.id}:${attempt}`,
+      idempotency_key: `${call.id}_${attempt}`, // Retell only allows [A-Za-z0-9_-]
       metadata: { outCallId: call.id, userId: user.id },
       retell_llm_dynamic_variables: {
         user_name: user.name || "the account holder",
@@ -75,6 +75,12 @@ export async function placeCall(outCallId: string) {
     if (row) publish(user.id, { type: "call.updated", call: toOutCall(row) });
     await audit(user.id, "call.placed", { outCallId: call.id, to: call.number, attempt });
   } catch (err) {
+    // A 4xx (other than rate limiting) means Retell rejected the request itself; retrying won't help.
+    const status = (err as { status?: number }).status;
+    if (status && status >= 400 && status < 500 && status !== 408 && status !== 429) {
+      console.error("[dialer] Retell rejected call", call.id, err);
+      return finish(call.id, user.id, { status: "failed", outcome: "failed", summary: "Ringo couldn't start this call. Please try again." });
+    }
     await db.update(schema.outCalls).set({ status: "queued", stage: "queue" }).where(eq(schema.outCalls.id, call.id));
     throw err; // pg-boss retries with backoff
   }
