@@ -9,6 +9,8 @@ export function toOutCall(r: typeof schema.outCalls.$inferSelect): OutCall {
     goal: r.goal, limits: r.limits, askMe: r.askMe, reservation: r.reservation ?? null, status: r.status, stage: r.stage,
     scheduledAt: r.scheduledAt.toISOString(), startedAt: iso(r.startedAt), endedAt: iso(r.endedAt),
     durationSec: r.durationSec, holdSec: r.holdSec, outcome: r.outcome, summary: r.summary, reference: r.reference, costCents: r.costCents,
+    holdForMe: r.holdForMe, savedCents: r.savedCents, followUpAt: iso(r.followUpAt), followUpNote: r.followUpNote,
+    appointmentAt: iso(r.appointmentAt), onCalendar: !!r.calendarEventId,
   };
 }
 

@@ -35,3 +35,18 @@ export const STAGE: Record<Stage, { label: string; icon: IconName }> = {
 export const STAGE_LABEL: Record<Stage, string> = Object.fromEntries(Object.entries(STAGE).map(([k, v]) => [k, v.label])) as Record<Stage, string>;
 
 export const CARRIER_LABEL = { att: "AT&T", tmobile: "T-Mobile", verizon: "Verizon" } as const;
+
+/**
+ * One-tap task templates: the jobs people most often hand to Ringo. Each fills in the call type, goal and limits;
+ * the user still picks who to call. `who` hints which picker tab makes sense.
+ */
+export type Template = { id: string; label: string; icon: IconName; category: Category; goal: string; limits: string; who?: "provider" | "other"; holdForMe?: boolean };
+export const TEMPLATES: Template[] = [
+  { id: "lower", label: "Lower my bill", icon: "trend", category: "billing", goal: "Lower my monthly bill. Ask for any current promotions, loyalty discounts or a cheaper plan with the same service.", limits: "Accept any discount of $5/month or more. Don't add services, sign a new contract, or change equipment." },
+  { id: "cancel", label: "Cancel a subscription", icon: "ban", category: "service", goal: "Cancel my subscription effective the end of the current billing period, and get a cancellation confirmation number.", limits: "Decline retention offers unless it's free for 3+ months. No cancellation fee without asking me." },
+  { id: "dispute", label: "Dispute a charge", icon: "receipt", category: "billing", goal: "Dispute the unexpected charge on my latest bill and get it refunded or credited.", limits: "Accept a full credit. Ask me before accepting a partial credit." },
+  { id: "order", label: "Check order status", icon: "store", category: "general", goal: "Find out the status of my most recent order: where it is, the expected delivery date, and the tracking number.", limits: "Don't cancel or change the order." },
+  { id: "table", label: "Book a table", icon: "utensils", category: "reservation", goal: "", limits: "Any time within 1 hour of the requested time is fine.", who: "other" },
+  { id: "appt", label: "Book an appointment", icon: "cal", category: "general", goal: "Book the earliest appointment that fits my calendar, and confirm the date, time and address.", limits: "Weekdays 9 AM–5 PM unless my calendar shows otherwise. Ask me before paying a deposit.", who: "other" },
+  { id: "human", label: "Get me a human", icon: "headphones", category: "service", goal: "Get through the phone menu and hold, then connect me to a person.", limits: "", holdForMe: true },
+];

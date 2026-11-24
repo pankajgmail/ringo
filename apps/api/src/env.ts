@@ -28,6 +28,9 @@ const Env = z
     DEFAULT_FROM_NUMBER: z.string().default(""),
     /** Google Places API (New) key for business search. Empty: only the built-in national brands are searchable. */
     GOOGLE_PLACES_API_KEY: z.string().default(""),
+    /** Google OAuth web client used to connect Google Calendar (the same client Cognito uses for sign-in). */
+    GOOGLE_OAUTH_CLIENT_ID: z.string().default(""),
+    GOOGLE_OAUTH_CLIENT_SECRET: z.string().default(""),
     /** Comma-separated extra browser origins allowed by CORS, e.g. a custom app domain. */
     EXTRA_WEB_ORIGINS: z.string().default("").transform((v) => v.split(",").map((x) => x.trim()).filter(Boolean)),
     /** Comma-separated emails that can open the admin dashboard (sign-ups, call stats). */

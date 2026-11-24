@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InCallType } from "@ringo/shared";
 import { useApi } from "@/api.ts";
-import { Acc, Badge, Button, Chip, Choice, Count, Empty, ErrorBox, Icon, Initials, Loading, Meta, MetaText, Pill, Stat, Stats, s, useAccordion } from "@/ui.tsx";
+import { Acc, Badge, Button, Chip, Choice, Count, Empty, ErrorBox, Icon, Initials, Loading, Meta, MetaText, Pill, Stat, Stats, s, useAccordion, useToast } from "@/ui.tsx";
 import { IN_TYPE } from "@/labels.ts";
 import { fmtPhone, fmtShort, fmtWhen } from "@/format.ts";
 import { c } from "@/theme.ts";
@@ -17,6 +17,13 @@ export default function InCalls() {
   const calls = useQuery({ queryKey: ["in-calls"], queryFn: api.inCalls, refetchInterval: 30_000 });
   const section = useAccordion<"forwarding" | "history">();
   const [filter, setFilter] = useState<Filter>("all");
+  const qc = useQueryClient();
+  const toast = useToast();
+  const callBack = useMutation({
+    mutationFn: (inCallId: string) => api.callBack(inCallId),
+    onSuccess: (call) => { toast("phone", `Ringo is calling ${call.name} back`); qc.invalidateQueries({ queryKey: ["calls"] }); router.push(`/call/${call.id}`); },
+    onError: (e) => toast("alert", e instanceof Error ? e.message : "Couldn't start the call"),
+  });
   const all = calls.data ?? [];
   const rows = all.filter((x) => filter === "all" || x.type === filter);
   const on = !!me.data?.forwardingActive;
@@ -77,6 +84,12 @@ export default function InCalls() {
                 {r.callbackNumber && r.type !== "spam" ? (
                   <Pressable onPress={() => Linking.openURL(`tel:${r.callbackNumber}`)} accessibilityRole="link" accessibilityLabel={`Call back ${fmtPhone(r.callbackNumber)}`}>
                     <Chip icon="phone" text="Call back" tone="act" />
+                  </Pressable>
+                ) : null}
+                {r.type !== "spam" ? (
+                  <Pressable onPress={() => callBack.mutate(r.id)} disabled={callBack.isPending} accessibilityRole="button"
+                    accessibilityLabel={`Have Ringo call ${r.callerName ?? fmtPhone(r.callbackNumber ?? r.fromNumber)} back`}>
+                    <Chip icon={callBack.isPending && callBack.variables === r.id ? "loader" : "headphones"} text="Ringo calls back" tone="act" />
                   </Pressable>
                 ) : null}
               </View>

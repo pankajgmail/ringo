@@ -56,6 +56,12 @@ const conferenceUser = {
   execution_message_description: "Tell the rep you're bringing the account holder on the line and to please hold.",
 };
 
+const checkCalendar = tool("check_calendar", "See when the account holder is busy on a date (times only), and whether a proposed time is free. Only works when calendar_access is yes.", {
+  date: { type: "string", description: "Date to check, YYYY-MM-DD." },
+  time: { type: "string", description: "Proposed start time, 24-hour HH:MM, if there is one." },
+  minutes: { type: "number", description: "How long it lasts, in minutes. Default 60." },
+}, ["date"]);
+
 const endCall = { type: "end_call" as const, name: "end_call", description: "End the call when the goal is done or cannot be done." };
 const pressDigit = { type: "press_digit" as const, name: "press_digit", description: "Press keypad digits to navigate phone menus." };
 
@@ -63,6 +69,10 @@ const outcomeFields = [
   { type: "enum" as const, name: "outcome", description: "success = goal fully met; partial = some of it; failed = nothing achieved.", choices: ["success", "partial", "failed"] },
   { type: "string" as const, name: "result_summary", description: "Two or three plain sentences for the user: what was asked, what the rep said, what was agreed (amounts, dates), any information the account holder supplied or whether they joined the call, and what happens next. Never include account numbers, PINs or codes." },
   { type: "string" as const, name: "reference_number", description: "Reference, ticket or confirmation number, or empty." },
+  { type: "number" as const, name: "saved_amount", description: "US dollars the account holder saves because of this call: credits, refunds, waived fees, or for a lower monthly bill the monthly saving times 12. 0 if none." },
+  { type: "string" as const, name: "appointment_time", description: "If a booking, appointment, visit or delivery window was confirmed: its start as YYYY-MM-DD HH:MM (24-hour, the business's local time). Else empty." },
+  { type: "string" as const, name: "follow_up_date", description: "If the rep said to call back or that something will happen by a date (e.g. 'call back in 3 days', 'refund in 7–10 days'): that date as YYYY-MM-DD, counting from today ({{today}}). Else empty." },
+  { type: "string" as const, name: "follow_up_reason", description: "Short reason for the follow-up, e.g. 'check the refund posted'. Else empty." },
 ];
 const inboundFields = [
   { type: "enum" as const, name: "caller_type", description: "important = time-sensitive or from a doctor, school, bank, courier, employer; message = normal; spam = sales/robocall.", choices: ["important", "message", "spam"] },
@@ -98,8 +108,8 @@ async function upsert(name: string, prompt: string, tools: unknown[], analysis: 
   return agent.agent_id;
 }
 
-const outbound = await upsert("ringo-outbound", OUTBOUND_PROMPT, [reportStatus, askUser, waitForAnswer, conferenceUser, pressDigit, endCall], outcomeFields);
-const booking = await upsert("ringo-booking", BOOKING_PROMPT, [askUser, waitForAnswer, conferenceUser, pressDigit, endCall], outcomeFields);
+const outbound = await upsert("ringo-outbound", OUTBOUND_PROMPT, [reportStatus, askUser, waitForAnswer, conferenceUser, checkCalendar, pressDigit, endCall], outcomeFields);
+const booking = await upsert("ringo-booking", BOOKING_PROMPT, [reportStatus, askUser, waitForAnswer, conferenceUser, checkCalendar, pressDigit, endCall], outcomeFields);
 const inbound = await upsert("ringo-inbound", INBOUND_PROMPT, [endCall], inboundFields, { end_call_after_silence_ms: 20_000 });
 
 console.log(`RETELL_OUTBOUND_AGENT_ID=${outbound}\nRETELL_BOOKING_AGENT_ID=${booking}\nRETELL_INBOUND_AGENT_ID=${inbound}`);

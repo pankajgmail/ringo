@@ -19,7 +19,13 @@ export const ProfileSchema = z.object({
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 
-export const PreferencesSchema = z.object({ infoMode: z.enum(INFO_MODES) });
+export const PreferencesSchema = z.object({
+  infoMode: z.enum(INFO_MODES).optional(),
+  /** Let Ringo look at free/busy on the connected Google Calendar before agreeing a time. */
+  calendarCheck: z.boolean().optional(),
+  /** Save confirmed bookings and appointments to the connected Google Calendar. */
+  calendarSave: z.boolean().optional(),
+});
 export type Preferences = z.infer<typeof PreferencesSchema>;
 
 export const ForwardingSchema = z.object({ active: z.boolean() });
@@ -41,6 +47,8 @@ export const OutCallInputSchema = z
     goal: z.string().trim().min(3).max(1000),
     limits: z.string().trim().max(1000).default(""),
     askMe: z.enum(ASK_ME).default("ask"),
+    /** "Hold for me": Ringo waits through menus and hold, then connects the user once a person answers. */
+    holdForMe: z.boolean().default(false),
     /** Omit to call as soon as possible. */
     scheduledAt: z.iso.datetime({ offset: true }).optional(),
     reservation: ReservationSchema.optional(),
@@ -74,6 +82,15 @@ export const OutCallSchema = z.object({
   summary: z.string().nullable(),
   reference: z.string().nullable(),
   costCents: z.number().nullable(),
+  holdForMe: z.boolean(),
+  /** Money the call saved the user (credits, refunds, lower bills), in cents. */
+  savedCents: z.number().nullable(),
+  /** When the rep said to call back, if they did. */
+  followUpAt: z.string().nullable(),
+  followUpNote: z.string().nullable(),
+  /** Confirmed booking/appointment time, and whether Ringo put it on the user's calendar. */
+  appointmentAt: z.string().nullable(),
+  onCalendar: z.boolean(),
 });
 export type OutCall = z.infer<typeof OutCallSchema>;
 
@@ -96,6 +113,9 @@ export const AnswerSchema = z.object({
   note: z.string().trim().max(500).optional(),
 }).refine((a) => a.choice !== "reply" || a.note, { message: "Reply text is required", path: ["note"] });
 export type Answer = z.infer<typeof AnswerSchema>;
+
+/** Repeat a past call's brief, now or at a later time (follow-up). */
+export const RepeatCallSchema = z.object({ scheduledAt: z.iso.datetime({ offset: true }).optional() });
 
 export const PhoneVerifyStartSchema = z.object({ phone: e164 });
 export const PhoneVerifyCheckSchema = z.object({ phone: e164, code: z.string().regex(/^\d{4,10}$/) });

@@ -7,6 +7,7 @@ import { env } from "../env.ts";
 import { audit } from "../lib/audit.ts";
 import { deleteAccount } from "../lib/delete-account.ts";
 import { isAdmin } from "./admin.ts";
+import { calendarConfigured } from "../services/calendar.ts";
 import { NumberError, numbersConfigured, provisionNumber } from "../services/numbers.ts";
 
 const verify = env.TWILIO_VERIFY_SERVICE_SID && env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN ? twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN).verify.v2.services(env.TWILIO_VERIFY_SERVICE_SID) : null;
@@ -18,6 +19,7 @@ export async function meRoutes(app: FastifyInstance) {
       id: u.id, name: u.name, email: u.email, phone: u.phone, phoneVerified: !!u.phoneVerifiedAt, address: u.address, zip: u.zip, isAdmin: isAdmin(u),
       carrier: u.carrier, timezone: u.timezone, ringoNumber: u.ringoNumber, forwardingActive: u.forwardingActive,
       monthlyBudgetCents: u.monthlyBudgetCents, numbersAvailable: numbersConfigured(), infoMode: u.infoMode,
+      calendar: { available: calendarConfigured(), connected: !!u.googleRefreshToken, email: u.googleCalendarEmail, check: u.calendarCheck, save: u.calendarSave },
       forwarding: u.ringoNumber ? forwardingCodes(u.carrier, u.ringoNumber) : null,
     };
   });
@@ -33,7 +35,7 @@ export async function meRoutes(app: FastifyInstance) {
   /** How Ringo gets details it doesn't have mid-call: ask in the app, or conference the user in. */
   app.put("/v1/me/preferences", async (req) => {
     const p = PreferencesSchema.parse(req.body);
-    await db.update(schema.users).set(p).where(eq(schema.users.id, req.user.id));
+    if (Object.keys(p).length) await db.update(schema.users).set(p).where(eq(schema.users.id, req.user.id));
     await audit(req.user.id, "me.preferences", p);
     return { ok: true, ...p };
   });

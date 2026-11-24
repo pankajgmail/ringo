@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, customType, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 import { ASK_ME, CARRIERS, CATEGORIES, IN_CALL_TYPES, OUTCOMES, OUT_CALL_STATUSES, PRIORITIES, STAGES } from "@ringo/shared";
 import type { TranscriptLine } from "@ringo/shared";
 
@@ -36,6 +38,13 @@ export const users = pgTable("users", {
   twilioNumberSid: text("twilio_number_sid"),
   /** "prompt" = ask in the app; "conference" = call the user's phone and connect them to the rep. */
   infoMode: text("info_mode").$type<"prompt" | "conference">().notNull().default("prompt"),
+  /** Google Calendar link. The refresh token is envelope-encrypted (KMS), bound to the user id. */
+  googleCalendarEmail: text("google_calendar_email"),
+  googleRefreshToken: bytea("google_refresh_token"),
+  /** Ringo may read free/busy before agreeing a time. */
+  calendarCheck: boolean("calendar_check").notNull().default(true),
+  /** Ringo may add confirmed bookings and appointments to the calendar. */
+  calendarSave: boolean("calendar_save").notNull().default(true),
   forwardingActive: boolean("forwarding_active").notNull().default(false),
   monthlyBudgetCents: integer("monthly_budget_cents").notNull().default(2000),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -53,6 +62,9 @@ export const outCalls = pgTable("out_calls", {
   goal: text("goal").notNull(),
   limits: text("limits").notNull().default(""),
   askMe: askMeEnum("ask_me").notNull().default("ask"),
+  holdForMe: boolean("hold_for_me").notNull().default(false),
+  /** Set when this call repeats or follows up an earlier one. */
+  parentId: uuid("parent_id"),
   reservation: jsonb("reservation").$type<{ date: string; time: string; party: number } | null>(),
   status: outStatusEnum("status").notNull().default("scheduled"),
   stage: stageEnum("stage").notNull().default("queue"),
@@ -69,6 +81,11 @@ export const outCalls = pgTable("out_calls", {
   summary: text("summary"),
   reference: text("reference"),
   disconnectionReason: text("disconnection_reason"),
+  savedCents: integer("saved_cents"),
+  followUpAt: timestamp("follow_up_at", { withTimezone: true }),
+  followUpNote: text("follow_up_note"),
+  appointmentAt: timestamp("appointment_at", { withTimezone: true }),
+  calendarEventId: text("calendar_event_id"),
   transcript: jsonb("transcript").$type<TranscriptLine[]>().notNull().default(sql`'[]'::jsonb`),
   recordingKey: text("recording_key"),
   costCents: integer("cost_cents"),

@@ -6,6 +6,7 @@ import { audit } from "../lib/audit.ts";
 import { retell, retellConfigured } from "../services/retell.ts";
 import { publish, push } from "../services/live.ts";
 import { toOutCall } from "../services/serialize.ts";
+import { today } from "../lib/tz.ts";
 import { boss, enqueueCall, QUEUE, type PlaceCallJob } from "./queue.ts";
 
 const LIVE: (typeof schema.outCalls.$inferSelect.status)[] = ["dialing", "in_progress", "awaiting_user"];
@@ -66,6 +67,10 @@ export async function placeCall(outCallId: string) {
         goal: call.goal,
         limits: call.limits || "None given. Ask the user before agreeing to anything not in the goal.",
         ask_me: call.askMe,
+        today: today(user.timezone || "America/Los_Angeles").long,
+        time_zone: user.timezone || "America/Los_Angeles",
+        calendar_access: user.googleRefreshToken && user.calendarCheck ? "yes" : "no",
+        hold_for_me: call.holdForMe ? "yes" : "no",
         booking_date: r?.date ?? "",
         booking_time: r?.time ?? "",
         party_size: r ? String(r.party) : "",

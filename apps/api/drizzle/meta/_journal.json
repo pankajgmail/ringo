@@ -29,6 +29,13 @@
       "when": 1795499479497,
       "tag": "0003_info_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795501017424,
+      "tag": "0004_features",
+      "breakpoints": true
     }
   ]
 }

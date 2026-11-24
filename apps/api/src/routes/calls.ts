@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
-import { AnswerSchema, OutCallInputSchema, PRIORITY_QUEUE, PROVIDERS } from "@ringo/shared";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { AnswerSchema, OutCallInputSchema, PRIORITY_QUEUE, PROVIDERS, RepeatCallSchema } from "@ringo/shared";
 import { db, schema } from "../db/client.ts";
 import { audit } from "../lib/audit.ts";
 import { checkDialable } from "../lib/safety.ts";
@@ -31,6 +31,7 @@ export async function callRoutes(app: FastifyInstance) {
       goal: input.goal,
       limits: input.limits,
       askMe: input.askMe,
+      holdForMe: input.holdForMe,
       reservation: input.reservation ?? null,
       scheduledAt: at,
       status: at.getTime() <= Date.now() ? "queued" : "scheduled",
@@ -39,6 +40,77 @@ export async function callRoutes(app: FastifyInstance) {
     await db.update(schema.outCalls).set({ jobId }).where(eq(schema.outCalls.id, row!.id));
     await audit(req.user.id, "call.created", { outCallId: row!.id, providerId: input.providerId });
     return reply.code(201).send(toOutCall(row!));
+  });
+
+  /**
+   * "Call again" / follow up: a new call with the same brief as a finished one. For a follow-up the goal says what the
+   * rep promised last time and quotes the reference number, so the next rep can pick it up.
+   */
+  app.post<{ Params: { id: string } }>("/v1/calls/:id/repeat", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (req, reply) => {
+    const { scheduledAt } = RepeatCallSchema.parse(req.body ?? {});
+    if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringo can call for you" });
+    const [src] = await db.select().from(schema.outCalls).where(and(eq(schema.outCalls.id, req.params.id), eq(schema.outCalls.userId, req.user.id)));
+    if (!src) return reply.code(404).send({ error: "not found" });
+    if (!["completed", "cancelled", "failed"].includes(src.status)) return reply.code(409).send({ error: "That call hasn't finished yet" });
+    const blocked = checkDialable(src.number);
+    if (blocked) return reply.code(400).send({ error: blocked });
+    const followUp = !!(src.followUpAt || src.reference || src.summary) && src.status === "completed";
+    const goal = followUp
+      ? `Follow-up to an earlier call. Last time: ${src.summary ?? ""}${src.reference ? ` Reference number: ${src.reference}.` : ""}${src.followUpNote ? ` They said: ${src.followUpNote}.` : ""} Original goal: ${src.goal}`.slice(0, 1000)
+      : src.goal;
+    const at = scheduledAt ? new Date(scheduledAt) : new Date();
+    const [row] = await db.insert(schema.outCalls).values({
+      userId: req.user.id, providerId: src.providerId, name: src.name, number: src.number, category: src.category, priority: src.priority,
+      goal, limits: src.limits, askMe: src.askMe, holdForMe: src.holdForMe, parentId: src.id,
+      // A booking's date may have passed; keep it only if it's still ahead.
+      reservation: src.reservation && new Date(`${src.reservation.date}T23:59:59`) > new Date() ? src.reservation : null,
+      scheduledAt: at, status: at.getTime() <= Date.now() ? "queued" : "scheduled",
+    }).returning();
+    if (row!.category === "reservation" && !row!.reservation) {
+      await db.delete(schema.outCalls).where(eq(schema.outCalls.id, row!.id));
+      return reply.code(400).send({ error: "That booking date has passed. Start a new booking instead." });
+    }
+    const jobId = await enqueueCall(row!.id, at, PRIORITY_QUEUE[row!.priority]);
+    await db.update(schema.outCalls).set({ jobId }).where(eq(schema.outCalls.id, row!.id));
+    if (src.followUpAt) await db.update(schema.outCalls).set({ followUpAt: null }).where(eq(schema.outCalls.id, src.id));
+    await audit(req.user.id, "call.repeated", { outCallId: row!.id, from: src.id });
+    return reply.code(201).send(toOutCall(row!));
+  });
+
+  /** Missed call → "Have Ringo call them back": a new outbound call to the caller, briefed with their message. */
+  app.post<{ Params: { id: string } }>("/v1/in-calls/:id/callback", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (req, reply) => {
+    if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringo can call for you" });
+    const body = (req.body ?? {}) as { goal?: string };
+    const [ic] = await db.select().from(schema.inCalls).where(and(eq(schema.inCalls.id, req.params.id), eq(schema.inCalls.userId, req.user.id)));
+    if (!ic) return reply.code(404).send({ error: "not found" });
+    if (ic.type === "spam") return reply.code(400).send({ error: "Ringo won't call back spam." });
+    const number = ic.callbackNumber || ic.fromNumber;
+    const blocked = checkDialable(number);
+    if (blocked) return reply.code(400).send({ error: blocked });
+    const who = ic.callerName || "the caller";
+    const extra = typeof body.goal === "string" ? body.goal.trim().slice(0, 500) : "";
+    const goal = `Return a missed call from ${who}. Their message: ${ic.summary || "none left"}. ${extra || "Find out what they need, answer what you can from the goal, and take a message for anything else."}`.slice(0, 1000);
+    const [row] = await db.insert(schema.outCalls).values({
+      userId: req.user.id, providerId: "custom", name: ic.callerName || number, number, category: "general", priority: ic.type === "important" ? "high" : "medium",
+      goal, limits: "Don't commit to anything on the account holder's behalf; take a message instead.", askMe: "ask", scheduledAt: new Date(), status: "queued",
+    }).returning();
+    const jobId = await enqueueCall(row!.id, new Date(), PRIORITY_QUEUE[row!.priority]);
+    await db.update(schema.outCalls).set({ jobId }).where(eq(schema.outCalls.id, row!.id));
+    await audit(req.user.id, "call.callback", { outCallId: row!.id, inCallId: ic.id });
+    return reply.code(201).send(toOutCall(row!));
+  });
+
+  /** Money and time Ringo saved, for the home-screen card. */
+  app.get("/v1/savings", async (req) => {
+    const [r] = await db.select({
+      savedCents: sql<number>`coalesce(sum(${schema.outCalls.savedCents}), 0)::int`,
+      holdSec: sql<number>`coalesce(sum(${schema.outCalls.holdSec}), 0)::int`,
+      talkSec: sql<number>`coalesce(sum(${schema.outCalls.durationSec}), 0)::int`,
+      done: sql<number>`count(*) filter (where ${schema.outCalls.outcome} in ('success','partial'))::int`,
+      monthSavedCents: sql<number>`coalesce(sum(${schema.outCalls.savedCents}) filter (where ${schema.outCalls.endedAt} >= date_trunc('month', now())), 0)::int`,
+    }).from(schema.outCalls).where(eq(schema.outCalls.userId, req.user.id));
+    const [{ n } = { n: 0 }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.inCalls).where(eq(schema.inCalls.userId, req.user.id));
+    return { ...r!, inCalls: n };
   });
 
   app.get<{ Querystring: { status?: "upcoming" | "history" } }>("/v1/calls", async (req) => {

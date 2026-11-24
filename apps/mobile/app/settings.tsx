@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, Text, View } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import * as Clipboard from "expo-clipboard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/api.ts";
@@ -10,9 +11,9 @@ import type { InfoMode } from "@ringo/shared";
 import { fmtPhone, toE164 } from "@/format.ts";
 import { c } from "@/theme.ts";
 
-function confirm(msg: string) {
+function confirm(msg: string, ok = "Delete") {
   if (Platform.OS === "web") return Promise.resolve(window.confirm(msg));
-  return new Promise<boolean>((res) => Alert.alert("Are you sure?", msg, [{ text: "Cancel", onPress: () => res(false) }, { text: "Delete", style: "destructive", onPress: () => res(true) }]));
+  return new Promise<boolean>((res) => Alert.alert("Are you sure?", msg, [{ text: "Cancel", onPress: () => res(false) }, { text: ok, style: "destructive", onPress: () => res(true) }]));
 }
 
 export default function Settings() {
@@ -20,7 +21,7 @@ export default function Settings() {
   const toast = useToast();
   const { signOut } = useAuth();
   const qc = useQueryClient();
-  const section = useAccordion<"profile" | "calls" | "line" | "account">();
+  const section = useAccordion<"profile" | "calls" | "calendar" | "line" | "account">();
   const me = useQuery({ queryKey: ["me"], queryFn: api.me });
 
   const [name, setName] = useState("");
@@ -51,6 +52,39 @@ export default function Settings() {
     mutationFn: (m: InfoMode) => api.setInfoMode(m),
     onMutate: (m) => qc.setQueryData(["me"], (old: typeof me.data) => (old ? { ...old, infoMode: m } : old)),
     onSuccess: (r) => toast("check", r.infoMode === "conference" ? "Ringo will call you in" : "Ringo will ask in the app"),
+    onError: () => qc.invalidateQueries({ queryKey: ["me"] }),
+  });
+
+  // Google Calendar: the OAuth callback comes back here with ?calendar=connected|error.
+  const params = useLocalSearchParams<{ calendar?: string; message?: string }>();
+  useEffect(() => {
+    if (!params.calendar) return;
+    if (params.calendar === "connected") { toast("check-circle", "Google Calendar connected"); section.openOnly("calendar"); }
+    else toast("alert", params.message || "Couldn't connect Google Calendar");
+    qc.invalidateQueries({ queryKey: ["me"] });
+    router.setParams({ calendar: undefined, message: undefined });
+  }, [params.calendar]);
+
+  const connectCal = useMutation({
+    mutationFn: async () => {
+      const returnTo = Platform.OS === "web" ? `${window.location.origin}/settings` : "ringo://settings";
+      const { url } = await api.connectCalendar(returnTo);
+      if (Platform.OS === "web") { window.location.assign(url); return; }
+      const r = await WebBrowser.openAuthSessionAsync(url, returnTo);
+      if (r.type !== "success") return;
+      const q = new URL(r.url).searchParams;
+      if (q.get("calendar") === "connected") toast("check-circle", "Google Calendar connected");
+      else throw new Error(q.get("message") || "Couldn't connect Google Calendar");
+      await qc.invalidateQueries({ queryKey: ["me"] });
+    },
+  });
+  const disconnectCal = useMutation({
+    mutationFn: api.disconnectCalendar,
+    onSuccess: () => { toast("check", "Google Calendar disconnected"); qc.invalidateQueries({ queryKey: ["me"] }); },
+  });
+  const calPref = useMutation({
+    mutationFn: (p: { calendarCheck?: boolean; calendarSave?: boolean }) => api.setPrefs(p),
+    onMutate: (p) => qc.setQueryData(["me"], (old: typeof me.data) => (old ? { ...old, calendar: { ...old.calendar, ...(p.calendarCheck != null && { check: p.calendarCheck }), ...(p.calendarSave != null && { save: p.calendarSave }) } } : old)),
     onError: () => qc.invalidateQueries({ queryKey: ["me"] }),
   });
 
@@ -113,6 +147,42 @@ export default function Settings() {
               {" "}If you don't answer within 2 minutes, Ringo politely ends the call and you can try again later.
             </Text>
             {infoMode.error ? <ErrorBox error={infoMode.error} /> : null}
+          </Acc>
+
+          <Acc icon="cal" title="Google Calendar"
+            sub={d?.calendar.connected ? d.calendar.email ?? "Connected" : "Let Ringo book around your schedule"}
+            right={d?.calendar.connected ? <Pill text="Connected" icon="check" color={c.ok} bg={c.okSoft} /> : undefined} {...section("calendar")}>
+            {!d?.calendar.available ? (
+              <Text style={s.muted}>Calendar connection isn't switched on yet.</Text>
+            ) : d.calendar.connected ? (
+              <>
+                <Meta style={{ marginBottom: 10 }}><Icon name="check-circle" size={14} color={c.ok} /><MetaText>Connected as {d.calendar.email ?? "your Google account"}</MetaText></Meta>
+                <Text style={[s.label, { marginBottom: 6 }]}>Check my availability</Text>
+                <Seg<"on" | "off"> label="Check my availability" value={d.calendar.check ? "on" : "off"} onChange={(v) => calPref.mutate({ calendarCheck: v === "on" })}
+                  options={[{ value: "on", label: "On", icon: "check" }, { value: "off", label: "Off", icon: "x" }]} />
+                <Text style={[s.meta, { marginTop: 6, marginBottom: 12 }]}>
+                  When booking, Ringo checks whether you're free before agreeing to a time. It only sees busy and free, not your event details.
+                </Text>
+                <Text style={[s.label, { marginBottom: 6 }]}>Save bookings to my calendar</Text>
+                <Seg<"on" | "off"> label="Save bookings to my calendar" value={d.calendar.save ? "on" : "off"} onChange={(v) => calPref.mutate({ calendarSave: v === "on" })}
+                  options={[{ value: "on", label: "On", icon: "check" }, { value: "off", label: "Off", icon: "x" }]} />
+                <Text style={[s.meta, { marginTop: 6, marginBottom: 12 }]}>
+                  When Ringo books an appointment or reservation, it adds the event to your primary calendar with the reference number.
+                </Text>
+                {calPref.error ? <ErrorBox error={calPref.error} /> : null}
+                <Button title="Disconnect" icon="x" kind="ghost" slim busy={disconnectCal.isPending}
+                  onPress={async () => { if (await confirm("Disconnect Google Calendar? Ringo won't check or add events anymore.", "Disconnect")) disconnectCal.mutate(); }} />
+                {disconnectCal.error ? <ErrorBox error={disconnectCal.error} /> : null}
+              </>
+            ) : (
+              <>
+                <Text style={[s.muted, { marginBottom: 10 }]}>
+                  Connect your Google Calendar so Ringo can pick a time you're free when it books something, and add the booking to your calendar. You can turn either off later.
+                </Text>
+                <Button title="Connect Google Calendar" icon="cal" busy={connectCal.isPending} onPress={() => connectCal.mutate()} />
+                {connectCal.error ? <ErrorBox error={connectCal.error} /> : null}
+              </>
+            )}
           </Acc>
 
           <Acc icon="signal" title="Your Ringo line" sub={d?.ringoNumber ? fmtPhone(d.ringoNumber) : "No number yet"}

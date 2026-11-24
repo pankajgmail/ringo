@@ -5,6 +5,8 @@ import { db, schema } from "../db/client.ts";
 import { audit } from "../lib/audit.ts";
 import { finish, maybeRedial } from "../jobs/dialer.ts";
 import { retell, verifyRetell } from "../services/retell.ts";
+import { addEvent, busy } from "../services/calendar.ts";
+import { fmtDay, fmtTime, parseLocal, today, zoned } from "../lib/tz.ts";
 import { isOnline, publish, push } from "../services/live.ts";
 import { toOutCall } from "../services/serialize.ts";
 
@@ -98,13 +100,21 @@ export async function retellRoutes(app: FastifyInstance) {
       if (row.status === "cancelled" || row.status === "queued") return reply.code(204).send();
       const data = call.call_analysis?.custom_analysis_data ?? {};
       const outcome: Outcome = pick(data.outcome, OUTCOMES, "failed");
+      const [user] = await db.select().from(schema.users).where(eq(schema.users.id, row.userId));
+      const tz = user?.timezone || "America/Los_Angeles";
+      const extra = callFacts(row, data, outcome, tz);
       await finish(row.id, row.userId, {
         status: outcome === "failed" ? "failed" : "completed",
         outcome,
         summary: String(data.result_summary || call.call_analysis?.call_summary || "Call ended."),
         reference: data.reference_number ? String(data.reference_number) : null,
         costCents: call.call_cost?.combined_cost != null ? Math.round(call.call_cost.combined_cost) : row.costCents,
+        ...extra,
       });
+      if (user && extra.appointmentAt) await saveToCalendar(user, { ...row, ...extra, reference: data.reference_number ? String(data.reference_number) : null, summary: String(data.result_summary || "") }, tz);
+      if (extra.followUpAt) {
+        await push(row.userId, `Follow up with ${row.name}?`, `They said to call back ${fmtDay(extra.followUpAt, tz)}. Tap to have Ringo do it.`, { outCallId: row.id });
+      }
     }
     return reply.code(204).send();
   });
@@ -138,8 +148,47 @@ export async function retellRoutes(app: FastifyInstance) {
       holdStartedAt: stage === "hold" ? (row.holdStartedAt ?? new Date(now)) : null,
     }).where(eq(schema.outCalls.id, row.id));
     publish(row.userId, { type: "call.stage", callId: row.id, stage, line: args.note ?? "" });
-    if (stage === "talk" && row.stage === "hold") await push(row.userId, `${row.name} picked up`, "Ringo is talking to a person now.", { outCallId: row.id });
+    const personNow = stage === "talk" && row.stage !== "talk";
+    if (personNow && row.holdForMe) {
+      await push(row.userId, `${row.name}: a person is on the line`, "Ringo is calling you now to connect you. Pick up!", { outCallId: row.id });
+      publish(row.userId, { type: "call.stage", callId: row.id, stage, line: "A person answered. Calling you to connect…" });
+      return {
+        ok: true,
+        instruction: `Hold for me is on: the account holder wants to talk to the rep themselves. Say: "Hi, thanks for picking up. I'm Ringo, an AI assistant for {{user_name}}. They'd like to speak with you directly, I'm connecting them now, one moment," then call conference_user. If they don't pick up, carry on with the goal yourself.`,
+      };
+    }
+    if (personNow && row.stage === "hold") await push(row.userId, `${row.name} picked up`, "Ringo is talking to a person now.", { outCallId: row.id });
     return { ok: true };
+  });
+
+  /**
+   * Calendar check: is the user free at a proposed time? Returns busy times only (never event titles), in the user's
+   * time zone. Off unless they connected Google Calendar and left "Check my availability" on.
+   */
+  app.post("/retell/tools/check_calendar", async (req) => {
+    const { call, args } = req.body as { call: RetellCall; args: { date?: string; time?: string; minutes?: number } };
+    const row = await outCallFor(call);
+    const [user] = row ? await db.select().from(schema.users).where(eq(schema.users.id, row.userId)) : [];
+    if (!user?.googleRefreshToken || !user.calendarCheck) {
+      return { available: "unknown", instruction: "You can't see the account holder's calendar. Use the times in the goal and limits; if a new time is proposed, call ask_user." };
+    }
+    const tz = user.timezone || "America/Los_Angeles";
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(args.date ?? "") ? args.date! : today(tz).iso;
+    try {
+      const dayStart = zoned(date, "00:00", tz);
+      const busyTimes = await busy(user, dayStart, new Date(dayStart.getTime() + 864e5));
+      const slots = busyTimes.map((b) => `${fmtTime(b.start, tz)}–${fmtTime(b.end, tz)}`);
+      const base = { date, busy: slots.length ? slots : ["nothing booked"], time_zone: tz };
+      if (!args.time || !/^\d{1,2}:\d{2}$/.test(args.time)) return { ...base, instruction: "Pick a time that doesn't overlap the busy times." };
+      const start = zoned(date, args.time.padStart(5, "0"), tz);
+      const end = new Date(start.getTime() + Math.max(15, Math.min(480, Number(args.minutes) || 60)) * 60_000);
+      const clash = busyTimes.find((b) => b.start < end && b.end > start);
+      return clash
+        ? { ...base, available: false, instruction: `They're busy then (${fmtTime(clash.start, tz)}–${fmtTime(clash.end, tz)}). Ask for a time outside the busy times.` }
+        : { ...base, available: true, instruction: "They're free then. It's fine to accept if it fits the goal and limits." };
+    } catch {
+      return { available: "unknown", instruction: "The calendar couldn't be checked right now. Use the goal and limits; call ask_user for anything new." };
+    }
   });
 
   /**
@@ -264,6 +313,39 @@ async function waitForAnswer(askId: string, until: Date) {
     await new Promise((r) => setTimeout(r, 1000));
   }
   return null;
+}
+
+/** Pulls the numbers out of post-call analysis: money saved, a follow-up date, a confirmed appointment. */
+export function callFacts(row: Row, data: Record<string, unknown>, outcome: Outcome, tz: string) {
+  const ok = outcome === "success" || outcome === "partial";
+  const saved = Number(data.saved_amount);
+  const r = row.reservation;
+  const appt = ok ? (parseLocal(data.appointment_time, tz) ?? (row.category === "reservation" && r ? zoned(r.date, r.time, tz) : null)) : null;
+  const follow = parseLocal(data.follow_up_date, tz, "10:00");
+  return {
+    savedCents: ok && Number.isFinite(saved) && saved > 0 && saved < 100_000 ? Math.round(saved * 100) : null,
+    followUpAt: follow && follow.getTime() > Date.now() ? follow : null,
+    followUpNote: data.follow_up_reason ? String(data.follow_up_reason).slice(0, 300) : null,
+    appointmentAt: appt,
+  };
+}
+
+/** Puts a confirmed booking on the user's Google Calendar, if they connected it and left "Save to my calendar" on. */
+async function saveToCalendar(user: typeof schema.users.$inferSelect, c: Row & { appointmentAt: Date | null; reference: string | null; summary: string }, tz: string) {
+  if (!user.googleRefreshToken || !user.calendarSave || !c.appointmentAt || c.calendarEventId) return;
+  const party = c.reservation?.party;
+  try {
+    const id = await addEvent(user, {
+      title: c.category === "reservation" ? `${c.name}${party ? ` (table for ${party})` : ""}` : `${c.name} appointment`,
+      start: c.appointmentAt, minutes: c.category === "reservation" ? 90 : 60, tz,
+      description: [c.summary, c.reference ? `Confirmation: ${c.reference}` : "", `Phone: ${c.number}`, "Booked by Ringo"].filter(Boolean).join("\n"),
+    });
+    if (!id) return;
+    await db.update(schema.outCalls).set({ calendarEventId: id }).where(eq(schema.outCalls.id, c.id));
+    await push(user.id, "Added to your calendar", `${c.name}, ${fmtDay(c.appointmentAt, tz)} at ${fmtTime(c.appointmentAt, tz)}`, { outCallId: c.id });
+  } catch {
+    // Calendar is a nice-to-have; the call result is already saved.
+  }
 }
 
 async function handleInbound(event: string, call: RetellCall) {

@@ -7,6 +7,7 @@ import { boss, QUEUE } from "../jobs/queue.ts";
 import type { User } from "./auth.ts";
 import { audit } from "./audit.ts";
 import { releaseNumber } from "../services/numbers.ts";
+import { disconnect } from "../services/calendar.ts";
 
 const cognito = env.COGNITO_USER_POOL_ID ? new CognitoIdentityProviderClient({}) : null;
 const LIVE = ["dialing", "in_progress", "awaiting_user"] as const;
@@ -34,6 +35,8 @@ export async function deleteAccount(user: User) {
 
   // The user's own assistant number goes back to Twilio so it stops billing (and can't receive their calls).
   await releaseNumber(user);
+  // Revoke Ringo's Google Calendar access too.
+  if (user.googleRefreshToken) await disconnect(user).catch(() => undefined);
 
   await db.transaction(async (tx) => {
     await tx.update(schema.auditLog).set({ detail: null }).where(eq(schema.auditLog.userId, user.id));

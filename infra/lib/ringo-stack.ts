@@ -255,6 +255,8 @@ export class RingoStack extends Stack {
           RECORDINGS_BUCKET: recordings.bucketName,
           AUTH_DEV_BYPASS: "false",
           ADMIN_EMAILS: (this.node.tryGetContext("adminEmails") as string | undefined) ?? "",
+          // Google Calendar connect reuses the sign-in OAuth client (its redirect URIs include /v1/calendar/callback).
+          GOOGLE_OAUTH_CLIENT_ID: props.googleClientId,
           DB_HOST: db.dbInstanceEndpointAddress,
           DB_PORT: db.dbInstanceEndpointPort,
           DB_NAME: "ringo",
@@ -276,6 +278,7 @@ export class RingoStack extends Stack {
           TWILIO_SIP_PASSWORD: s("TWILIO_SIP_PASSWORD"),
           DEFAULT_FROM_NUMBER: s("DEFAULT_FROM_NUMBER"),
           GOOGLE_PLACES_API_KEY: s("GOOGLE_PLACES_API_KEY"),
+          GOOGLE_OAUTH_CLIENT_SECRET: s("google-client-secret"),
         },
       },
     });

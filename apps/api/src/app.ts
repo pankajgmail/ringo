@@ -11,6 +11,7 @@ import { callRoutes } from "./routes/calls.ts";
 import { placesRoutes } from "./routes/places.ts";
 import { adminRoutes } from "./routes/admin.ts";
 import { retellRoutes } from "./routes/retell.ts";
+import { calendarCallback, calendarRoutes } from "./routes/calendar.ts";
 import { attach } from "./services/live.ts";
 
 export async function buildApp() {
@@ -62,6 +63,8 @@ export async function buildApp() {
 
   // Webhooks and agent tools: Retell signature auth, no user session.
   await app.register(retellRoutes);
+  // Google sends the browser back here after calendar consent; the user is identified by the encrypted state.
+  await app.register(calendarCallback);
 
   // App API: Cognito-authenticated.
   await app.register(async (api) => {
@@ -70,6 +73,7 @@ export async function buildApp() {
     await api.register(callRoutes);
     await api.register(placesRoutes);
     await api.register(adminRoutes);
+    await api.register(calendarRoutes);
   });
 
   // Live updates. Browsers can't set headers on WebSocket, so the token comes as a query param.
