@@ -260,7 +260,7 @@ export class RingoStack extends Stack {
           // Mid-call questions by text. WhatsApp: the Twilio sandbox sender until a WhatsApp Business sender is approved.
           TWILIO_SMS_FROM: (this.node.tryGetContext("smsFrom") as string | undefined) ?? "",
           TWILIO_WHATSAPP_FROM: (this.node.tryGetContext("whatsappFrom") as string | undefined) ?? "",
-          TWILIO_WHATSAPP_JOIN: (this.node.tryGetContext("whatsappJoin") as string | undefined) ?? "",
+          TWILIO_WHATSAPP_JOIN: ((this.node.tryGetContext("whatsappJoin") as string | undefined) ?? "").replace(/_/g, " "),
           DB_HOST: db.dbInstanceEndpointAddress,
           DB_PORT: db.dbInstanceEndpointPort,
           DB_NAME: "ringo",
