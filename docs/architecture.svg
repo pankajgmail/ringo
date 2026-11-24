@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1090" viewBox="0 0 1600 1090" font-family="-apple-system, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1240" viewBox="0 0 1600 1240" font-family="-apple-system, Helvetica, Arial, sans-serif">
 <defs>
   <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker>
   <style>
@@ -13,151 +13,177 @@
     .bg{fill:#ffffff;stroke:#cbd5e1}
   </style>
 </defs>
-<rect width="1600" height="1090" fill="#f8fafc"/>
+<rect width="1600" height="1240" fill="#f8fafc"/>
 <text x="40" y="50" font-size="26" font-weight="800" fill="#0f172a">Ringo — current architecture</text>
-<text x="40" y="74" class="s">AI assistant that calls businesses for you and answers calls you miss · as deployed Nov 2026</text>
+<text x="40" y="74" class="s">AI assistant that calls businesses for you and answers calls you miss · iOS, Android and web · Nov 24, 2026</text>
 
-<!-- AWS -->
-<rect x="320" y="90" width="860" height="900" rx="14" fill="#fffbf5" stroke="#f59e0b" stroke-dasharray="8 5"/>
+<!-- AWS frame -->
+<rect x="320" y="90" width="860" height="1010" rx="14" fill="#fffbf5" stroke="#f59e0b" stroke-dasharray="8 5"/>
 <text x="340" y="114" class="l" fill="#b45309">AWS · us-east-2 · CDK stack Ringo-dev</text>
 
-<!-- Users -->
-<rect x="40" y="140" width="250" height="90" rx="10" class="u"/>
-<text x="56" y="168" class="t">Ringo web app</text>
-<text x="56" y="190" class="s">Expo + React Native Web</text>
-<text x="56" y="208" class="s">TanStack Query · expo-router</text>
-<rect x="40" y="260" width="250" height="90" rx="10" class="u" stroke-dasharray="6 4"/>
-<text x="56" y="288" class="t">iOS / Android app</text>
-<text x="56" y="310" class="s">Same Expo codebase</text>
-<text x="56" y="328" class="s">Next phase (EAS build, App Store)</text>
+<!-- You -->
+<rect x="40" y="140" width="250" height="130" rx="10" class="u" stroke-width="2.2"/>
+<text x="56" y="168" class="t">Ringo app</text>
+<text x="56" y="190" class="s">iOS · Android · web, one Expo codebase</text>
+<text x="56" y="208" class="s">expo-router · TanStack Query</text>
+<text x="56" y="226" class="s">App Store + Google Play via EAS</text>
+<text x="56" y="244" class="s">Keychain/Keystore tokens · push</text>
+<text x="56" y="262" class="s">Out Call · In Call · Settings · Feedback</text>
 
-<rect x="40" y="380" width="250" height="270" rx="10" class="bg"/>
-<text x="56" y="405" class="l">Outbound call flow</text>
-<text x="56" y="428" class="s">1. You create a call in the app</text>
-<text x="56" y="448" class="s">2. API saves it; pg-boss queues it</text>
-<text x="56" y="468" class="s">3. Dialer asks Retell to call</text>
-<text x="56" y="488" class="s">4. Retell dials out over Twilio SIP</text>
-<text x="56" y="508" class="s">5. Webhooks → live updates in app</text>
-<text x="56" y="528" class="s">6. Outcome + transcript saved</text>
-<text x="56" y="560" class="l">Inbound (missed calls)</text>
-<text x="56" y="583" class="s">Carrier forwards → Twilio number</text>
-<text x="56" y="603" class="s">→ Retell inbound agent takes a</text>
-<text x="56" y="623" class="s">message → shows in In Call</text>
+<rect x="40" y="300" width="250" height="110" rx="10" class="u"/>
+<text x="56" y="328" class="t">Your phone</text>
+<text x="56" y="350" class="s">Conditional call forwarding</text>
+<text x="56" y="368" class="s">SMS / WhatsApp: answer Ringo's</text>
+<text x="56" y="386" class="s">mid-call questions by text</text>
+<text x="56" y="404" class="s">Conference-in: Ringo rings you</text>
 
-<rect x="40" y="700" width="250" height="100" rx="10" class="u"/>
-<text x="56" y="728" class="t">Your phone</text>
-<text x="56" y="750" class="s">Carrier conditional forwarding</text>
-<text x="56" y="768" class="s">(no answer / busy / unreachable)</text>
+<rect x="40" y="440" width="250" height="420" rx="10" class="bg"/>
+<text x="56" y="465" class="l">Out call</text>
+<text x="56" y="487" class="s">1. You brief a call in the app</text>
+<text x="56" y="505" class="s">2. API checks plan (5 free, $9.99/mo)</text>
+<text x="56" y="523" class="s">3. pg-boss queues; dialer → Retell</text>
+<text x="56" y="541" class="s">4. Retell dials over Twilio SIP</text>
+<text x="56" y="559" class="s">5. ask_user → push / SMS / WhatsApp,</text>
+<text x="56" y="577" class="s">    you answer within 2 minutes</text>
+<text x="56" y="595" class="s">6. Outcome, savings, transcript saved;</text>
+<text x="56" y="613" class="s">    appointment → Google Calendar</text>
+<text x="56" y="645" class="l">In call (missed calls)</text>
+<text x="56" y="667" class="s">Carrier forwards → your Ringo number</text>
+<text x="56" y="685" class="s">→ inbound agent takes a message,</text>
+<text x="56" y="703" class="s">asks sales callers value / price /</text>
+<text x="56" y="721" class="s">deadline, blocks spam → In Call + push</text>
+<text x="56" y="753" class="l">Account</text>
+<text x="56" y="775" class="s">Google or Apple sign-in, no passwords</text>
+<text x="56" y="793" class="s">Stripe Checkout + Portal for the plan</text>
+<text x="56" y="811" class="s">Star feedback → admin dashboard</text>
+<text x="56" y="829" class="s">Delete account: hard delete, cascades</text>
+<text x="56" y="847" class="s">to Retell, Twilio, Stripe, Cognito</text>
 
 <!-- Edge -->
-<rect x="350" y="140" width="250" height="100" rx="10" class="w"/>
-<text x="366" y="168" class="t">CloudFront</text>
+<rect x="350" y="140" width="250" height="110" rx="10" class="w"/>
+<text x="366" y="168" class="t">CloudFront + WAF</text>
 <text x="366" y="190" class="s">dhab8f4nxogwy.cloudfront.net</text>
 <text x="366" y="208" class="s">/ → S3 · /v1 /retell /health → ALB</text>
-<text x="366" y="226" class="s">Same origin: no CORS</text>
-<rect x="350" y="290" width="160" height="80" rx="10" class="w"/>
+<text x="366" y="226" class="s">AWS managed rules · 3000/5 min/IP</text>
+<text x="366" y="244" class="s">60 s origin timeout</text>
+<rect x="350" y="290" width="200" height="90" rx="10" class="w"/>
 <text x="366" y="318" class="t">S3 · web</text>
-<text x="366" y="340" class="s">Static export</text>
-<text x="366" y="357" class="s">+ SPA rewrite fn</text>
-<rect x="650" y="140" width="250" height="100" rx="10" class="w"/>
+<text x="366" y="340" class="s">Web app (static export)</text>
+<text x="366" y="357" class="s">privacy.html · terms.html</text>
+<rect x="650" y="140" width="250" height="110" rx="10" class="w"/>
 <text x="666" y="168" class="t">Cognito user pool</text>
-<text x="666" y="190" class="s">Hosted UI · Google sign-in</text>
+<text x="666" y="190" class="s">Hosted UI · Google + Apple</text>
 <text x="666" y="208" class="s">OAuth code + PKCE → JWT</text>
-<text x="666" y="226" class="s">API verifies the JWT</text>
+<text x="666" y="226" class="s">1 h ID token · 30 d refresh</text>
+<text x="666" y="244" class="s">API verifies the JWT</text>
 
 <!-- VPC -->
-<rect x="350" y="410" width="800" height="420" rx="12" fill="none" stroke="#94a3b8" stroke-dasharray="5 4"/>
-<text x="366" y="432" class="l">VPC · 2 AZs · private subnets</text>
-<rect x="380" y="450" width="200" height="80" rx="10" class="w"/>
-<text x="396" y="478" class="t">Load balancer</text>
-<text x="396" y="500" class="s">ALB · health checks</text>
-<text x="396" y="517" class="s">long timeout for holds</text>
-<rect x="620" y="450" width="500" height="200" rx="10" class="w" stroke-width="2.2"/>
-<text x="636" y="478" class="t">ECS Fargate (ARM64) · Fastify API</text>
-<text x="636" y="504" class="s">• /v1/me · /v1/calls · /v1/places (Google proxy, key stays server-side)</text>
-<text x="636" y="526" class="s">• /v1/live WebSocket: live call status, transcript, ask-me prompts</text>
-<text x="636" y="548" class="s">• /retell/webhook · /retell/tools/* · /retell/inbound (signed)</text>
-<text x="636" y="570" class="s">• pg-boss dialer: queue, priority, retries, idempotency key</text>
-<text x="636" y="592" class="s">• Phone verification (Twilio Verify) · rate limits</text>
-<text x="636" y="614" class="s">• Drizzle ORM · zod schemas shared with the app</text>
-<text x="636" y="636" class="s">• Alarms: 5xx, unhealthy tasks</text>
-<rect x="620" y="690" width="260" height="110" rx="10" class="w"/>
-<text x="636" y="718" class="t">RDS PostgreSQL</text>
-<text x="636" y="740" class="s">users · out_calls · in_calls</text>
-<text x="636" y="758" class="s">pg-boss job queue</text>
-<text x="636" y="776" class="s">KMS encrypted</text>
-<rect x="380" y="720" width="200" height="80" rx="10" class="w"/>
-<text x="396" y="748" class="t">NAT gateway</text>
-<text x="396" y="770" class="s">egress to Retell,</text>
-<text x="396" y="787" class="s">Twilio, Google</text>
+<rect x="350" y="420" width="800" height="490" rx="12" fill="none" stroke="#94a3b8" stroke-dasharray="5 4"/>
+<text x="366" y="442" class="l">VPC · 2 AZs · private subnets</text>
+<rect x="380" y="460" width="200" height="90" rx="10" class="w"/>
+<text x="396" y="488" class="t">Load balancer</text>
+<text x="396" y="510" class="s">ALB · CloudFront only</text>
+<text x="396" y="527" class="s">health checks · /health</text>
+<rect x="620" y="460" width="510" height="280" rx="10" class="w" stroke-width="2.2"/>
+<text x="636" y="488" class="t">ECS Fargate (ARM64, 1 task) · Fastify API</text>
+<text x="636" y="514" class="s">• /v1/me · /v1/calls · /v1/in-calls · /v1/places · /v1/savings</text>
+<text x="636" y="536" class="s">• /v1/billing (Stripe) · /v1/calendar (Google) · /v1/feedback · /v1/admin</text>
+<text x="636" y="558" class="s">• /v1/live WebSocket: call stage, transcript, ask prompts</text>
+<text x="636" y="580" class="s">• /retell/webhook · /retell/inbound · /retell/tools/* (signed)</text>
+<text x="636" y="602" class="s">   ask_user · wait_for_answer · check_calendar · report_status</text>
+<text x="636" y="624" class="s">• /v1/webhooks/twilio/message (SMS/WhatsApp, STOP/HELP) · /stripe</text>
+<text x="636" y="646" class="s">• pg-boss dialer: queue, priority, schedule, retries</text>
+<text x="636" y="668" class="s">• Expo push sender · Twilio Verify · per-user numbers</text>
+<text x="636" y="690" class="s">• Drizzle ORM · zod schemas shared with the app</text>
+<text x="636" y="712" class="s">• Rate limits · KMS envelope encryption · audit log</text>
+<rect x="620" y="780" width="320" height="110" rx="10" class="w"/>
+<text x="636" y="808" class="t">RDS PostgreSQL 17</text>
+<text x="636" y="830" class="s">users · out_calls · asks · in_calls</text>
+<text x="636" y="848" class="s">feedback · push_tokens · audit_log</text>
+<text x="636" y="866" class="s">pg-boss schema · KMS encrypted</text>
+<rect x="380" y="800" width="200" height="90" rx="10" class="w"/>
+<text x="396" y="828" class="t">NAT gateway</text>
+<text x="396" y="850" class="s">egress to Retell, Twilio,</text>
+<text x="396" y="867" class="s">Stripe, Google, Expo</text>
 
-<!-- Bottom services -->
-<rect x="350" y="860" width="180" height="100" rx="10" class="w"/>
-<text x="366" y="888" class="t">S3 · recordings</text>
-<text x="366" y="910" class="s">KMS encrypted</text>
-<rect x="550" y="860" width="180" height="100" rx="10" class="w"/>
-<text x="566" y="888" class="t">KMS data key</text>
-<text x="566" y="910" class="s">DB + recordings</text>
-<rect x="750" y="860" width="180" height="100" rx="10" class="w"/>
-<text x="766" y="888" class="t">SSM Parameters</text>
-<text x="766" y="910" class="s">/ringo/dev/* secrets</text>
-<text x="766" y="928" class="s">Retell, Twilio, Google</text>
-<rect x="950" y="860" width="200" height="100" rx="10" class="w"/>
-<text x="966" y="888" class="t">CloudWatch</text>
-<text x="966" y="910" class="s">Logs · Container Insights</text>
-<text x="966" y="928" class="s">Alarms</text>
+<!-- Bottom AWS services -->
+<rect x="350" y="960" width="180" height="100" rx="10" class="w"/>
+<text x="366" y="988" class="t">S3 · recordings</text>
+<text x="366" y="1010" class="s">KMS · 90-day expiry</text>
+<rect x="550" y="960" width="180" height="100" rx="10" class="w"/>
+<text x="566" y="988" class="t">KMS data key</text>
+<text x="566" y="1010" class="s">DB, recordings,</text>
+<text x="566" y="1028" class="s">account fields</text>
+<rect x="750" y="960" width="180" height="100" rx="10" class="w"/>
+<text x="766" y="988" class="t">SSM Parameters</text>
+<text x="766" y="1010" class="s">/ringo/dev/* secrets</text>
+<text x="766" y="1028" class="s">Retell, Twilio, Stripe,</text>
+<text x="766" y="1046" class="s">Google</text>
+<rect x="950" y="960" width="200" height="100" rx="10" class="w"/>
+<text x="966" y="988" class="t">CloudWatch</text>
+<text x="966" y="1010" class="s">Logs · Container Insights</text>
+<text x="966" y="1028" class="s">Alarms: 5xx, unhealthy</text>
 
 <!-- External -->
 <text x="1220" y="114" class="l" fill="#6d28d9">External services</text>
 <rect x="1220" y="140" width="340" height="110" rx="10" class="x"/>
 <text x="1236" y="168" class="t">Google</text>
-<text x="1236" y="190" class="s">OAuth (sign-in via Cognito)</text>
-<text x="1236" y="208" class="s">Places API (New) text search: nearby</text>
-<text x="1236" y="226" class="s">shops, restaurants, phone numbers</text>
-<rect x="1220" y="300" width="340" height="150" rx="10" class="x" stroke-width="2.2"/>
-<text x="1236" y="328" class="t">Retell AI</text>
-<text x="1236" y="350" class="s">Voice agents: ringo-outbound,</text>
-<text x="1236" y="368" class="s">ringo-booking, ringo-inbound</text>
-<text x="1236" y="386" class="s">LLM gpt-5.4-mini · ElevenLabs voice</text>
-<text x="1236" y="404" class="s">Menus, hold, talking, post-call analysis</text>
-<text x="1236" y="422" class="s">Discloses it's an AI assistant</text>
-<rect x="1220" y="500" width="340" height="130" rx="10" class="x"/>
-<text x="1236" y="528" class="t">Twilio</text>
-<text x="1236" y="550" class="s">Ringo phone number</text>
-<text x="1236" y="568" class="s">Elastic SIP trunk ↔ Retell</text>
-<text x="1236" y="586" class="s">Verify: SMS codes for your phone</text>
-<rect x="1220" y="700" width="340" height="100" rx="10" class="x"/>
-<text x="1236" y="728" class="t">Businesses &amp; callers</text>
-<text x="1236" y="750" class="s">AT&amp;T, restaurants, doctors…</text>
-<text x="1236" y="768" class="s">Public phone network</text>
-<rect x="1220" y="860" width="340" height="100" rx="10" class="bg"/>
-<text x="1236" y="888" class="t">GitHub</text>
-<text x="1236" y="910" class="s">pankajgmail/ringo · monorepo</text>
-<text x="1236" y="928" class="s">apps/mobile · apps/api · packages/shared · infra</text>
+<text x="1236" y="190" class="s">OAuth sign-in (via Cognito)</text>
+<text x="1236" y="208" class="s">Places API (New): business search</text>
+<text x="1236" y="226" class="s">Calendar: free/busy + add events</text>
+<rect x="1220" y="280" width="340" height="130" rx="10" class="x" stroke-width="2.2"/>
+<text x="1236" y="308" class="t">Retell AI</text>
+<text x="1236" y="330" class="s">Agents: ringo-outbound, ringo-booking,</text>
+<text x="1236" y="348" class="s">ringo-inbound · LLM gpt-5.4-mini</text>
+<text x="1236" y="366" class="s">Menus, hold, talking, warm transfer</text>
+<text x="1236" y="384" class="s">Post-call analysis · says it's an AI</text>
+<rect x="1220" y="440" width="340" height="130" rx="10" class="x"/>
+<text x="1236" y="468" class="t">Twilio</text>
+<text x="1236" y="490" class="s">Ringo numbers · Elastic SIP trunk ↔ Retell</text>
+<text x="1236" y="508" class="s">Verify: SMS codes for your phone</text>
+<text x="1236" y="526" class="s">Messaging: SMS (A2P 10DLC) + WhatsApp</text>
+<text x="1236" y="544" class="s">replies → /v1/webhooks/twilio/message</text>
+<rect x="1220" y="600" width="340" height="100" rx="10" class="x"/>
+<text x="1236" y="628" class="t">Stripe</text>
+<text x="1236" y="650" class="s">$9.99/month after 5 free calls</text>
+<text x="1236" y="668" class="s">Checkout · Customer Portal · webhooks</text>
+<rect x="1220" y="730" width="340" height="100" rx="10" class="x"/>
+<text x="1236" y="758" class="t">Expo push → APNs / FCM</text>
+<text x="1236" y="780" class="s">"Decision needed", messages, results</text>
+<text x="1236" y="798" class="s">Android channel "calls" (high priority)</text>
+<rect x="1220" y="860" width="340" height="90" rx="10" class="x"/>
+<text x="1236" y="888" class="t">Businesses &amp; callers</text>
+<text x="1236" y="910" class="s">AT&amp;T, restaurants, doctors… · PSTN</text>
+<rect x="1220" y="980" width="340" height="100" rx="10" class="bg"/>
+<text x="1236" y="1008" class="t">GitHub + EAS</text>
+<text x="1236" y="1030" class="s">pankajgmail/ringo monorepo</text>
+<text x="1236" y="1048" class="s">EAS Build / Submit → App Store, Play</text>
 
 <!-- Arrows -->
-<path class="ln" d="M290,185 H348"/><text x="296" y="178" class="l">HTTPS</text>
-<path class="dl" d="M290,305 H320 V200 H348"/>
+<path class="ln" d="M290,195 H348"/><text x="296" y="188" class="l">HTTPS</text>
 <path class="ln" d="M165,140 V124 H775 V138"/><text x="420" y="134" class="l" fill="#1d4ed8">Sign in</text>
-<path class="ln" d="M900,190 H1218"/><text x="980" y="182" class="l">Google federation</text>
-<path class="ln" d="M430,240 V288"/>
-<path class="ln" d="M560,240 V448"/><text x="568" y="400" class="l">/v1 · /retell · WS</text>
-<path class="ln" d="M580,490 H618"/>
-<path class="ln" d="M750,650 V688"/>
-<path class="ln" d="M620,630 L582,740"/>
-<path class="ln" d="M1120,470 L1218,235"/><text x="1128" y="330" class="l" transform="rotate(-67 1128 330)">Places search</text>
-<path class="ln" d="M1120,515 L1218,375"/><text x="1150" y="438" class="l">create call</text>
-<path class="dl" d="M1218,430 L1122,560"/><text x="1128" y="600" class="l" transform="rotate(-54 1128 600)">webhooks, tools</text>
-<path class="ln" d="M1120,630 L1218,580"/><text x="1140" y="640" class="l">Verify SMS</text>
-<path class="ln" d="M1390,452 V498" marker-start="url(#a)"/><text x="1400" y="480" class="l">SIP</text>
-<path class="ln" d="M1390,632 V698" marker-start="url(#a)"/><text x="1400" y="670" class="l">phone network</text>
-<path class="ln" d="M1000,650 V842 H440 V858"/>
-<path class="ln" d="M640,842 V858"/><path class="ln" d="M840,842 V858"/><path class="ln" d="M1050,842 V858"/>
-<path class="ln" d="M165,800 V1015 H1585 V565 H1562"/><text x="560" y="1008" class="l">Missed calls forwarded to your Ringo number</text>
+<path class="ln" d="M900,195 H1218"/><text x="975" y="187" class="l">Google federation</text>
+<path class="ln" d="M430,250 V288"/>
+<path class="ln" d="M580,250 V458"/><text x="588" y="410" class="l">/v1 · /retell · WS</text>
+<path class="ln" d="M580,505 H618"/>
+<path class="ln" d="M780,740 V778"/>
+<path class="ln" d="M620,720 L582,820"/>
+<path class="ln" d="M1130,480 L1218,240"/><text x="1140" y="330" class="l" transform="rotate(-70 1140 330)">Places, Calendar</text>
+<path class="ln" d="M1130,520 L1218,370"/><text x="1158" y="420" class="l">create call</text>
+<path class="dl" d="M1218,400 L1132,560"/><text x="1150" y="505" class="l">tools</text>
+<path class="ln" d="M1130,600 L1218,520"/><text x="1144" y="590" class="l">SMS</text>
+<path class="ln" d="M1130,650 H1218"/><text x="1146" y="644" class="l">billing</text>
+<path class="ln" d="M1130,700 L1218,770"/><text x="1146" y="745" class="l">push</text>
+<path class="ln" d="M1390,412 V438" marker-start="url(#a)"/><text x="1400" y="430" class="l">SIP</text>
+<path class="ln" d="M1562,505 H1580 V905 H1562" marker-start="url(#a)"/><text x="1500" y="855" class="l">PSTN</text>
+<path class="ln" d="M1220,800 H1200 V1120 H20 V200 H38"/><text x="560" y="1114" class="l">Push notifications to the app</text>
+<path class="dl" d="M1220,560 H1195 V1140 H10 V360 H38"/><text x="560" y="1134" class="l">Texts and forwarded calls ↔ your phone</text>
+<path class="ln" d="M1040,740 V942 H440 V958"/>
+<path class="ln" d="M640,942 V958"/><path class="ln" d="M840,942 V958"/><path class="ln" d="M1050,942 V958"/>
 
 <!-- Legend -->
-<rect x="40" y="1040" width="16" height="16" rx="3" class="u"/><text x="64" y="1053" class="s">You</text>
-<rect x="120" y="1040" width="16" height="16" rx="3" class="w"/><text x="144" y="1053" class="s">AWS</text>
-<rect x="200" y="1040" width="16" height="16" rx="3" class="x"/><text x="224" y="1053" class="s">Third-party service</text>
-<path class="dl" d="M370,1048 H410"/><text x="420" y="1053" class="s">Callback / planned</text>
+<rect x="40" y="1190" width="16" height="16" rx="3" class="u"/><text x="64" y="1203" class="s">You</text>
+<rect x="120" y="1190" width="16" height="16" rx="3" class="w"/><text x="144" y="1203" class="s">AWS</text>
+<rect x="200" y="1190" width="16" height="16" rx="3" class="x"/><text x="224" y="1203" class="s">Third-party service</text>
+<path class="dl" d="M370,1198 H410"/><text x="420" y="1203" class="s">Callback / two-way</text>
 </svg>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
+import * as StoreReview from "expo-store-review";
 import { useMutation } from "@tanstack/react-query";
 import { useApi } from "@/api.ts";
 import { Button, Card, ErrorLine, Field, Icon, PageHeader, s, useToast } from "@/ui.tsx";
@@ -40,8 +41,10 @@ export default function FeedbackScreen() {
       platform: Platform.OS === "ios" || Platform.OS === "android" ? Platform.OS : "web",
       appVersion: Constants.expoConfig?.version,
     }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast("check-circle", "Thanks for the feedback!");
+      // Happy users get the system's rate-this-app sheet (iOS/Android decide whether to show it).
+      if (rating >= 4 && Platform.OS !== "web" && (await StoreReview.isAvailableAsync().catch(() => false))) await StoreReview.requestReview().catch(() => undefined);
       if (router.canGoBack()) router.back(); else router.replace("/");
     },
   });

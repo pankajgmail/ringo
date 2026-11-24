@@ -70,3 +70,15 @@ describe("texted replies", () => {
     expect(parseReply("info", "call me").choice).toBe("takeover");
   });
 });
+
+describe("carrier keywords", async () => {
+  const { keyword } = await import("../src/services/messaging.ts");
+  it("spots STOP and HELP so they never reach a call", () => {
+    for (const w of ["STOP", "stop.", "Unsubscribe", "CANCEL", "end", "quit"]) expect(keyword(w)).toBe("stop");
+    expect(keyword("HELP")).toBe("help");
+    expect(keyword("START")).toBe("start");
+    expect(keyword("anything", "STOP")).toBe("stop");
+    expect(keyword("4")).toBeNull();
+    expect(keyword("stop by at 5pm")).toBeNull();
+  });
+});

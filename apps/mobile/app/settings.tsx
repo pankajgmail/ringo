@@ -9,6 +9,8 @@ import { useAuth } from "@/auth.tsx";
 import { Acc, Button, Choice, ErrorBox, Field, Icon, IconBtn, Initials, Loading, Meta, MetaText, PageHeader, Pill, Seg, s, useAccordion, useToast } from "@/ui.tsx";
 import type { InfoMode } from "@ringo/shared";
 import { fmtPhone, toE164 } from "@/format.ts";
+import { config } from "@/config.ts";
+import Constants from "expo-constants";
 import { c } from "@/theme.ts";
 
 const INFO_SUB: Record<InfoMode, string> = {
@@ -190,6 +192,11 @@ export default function Settings() {
                   </Text>
                   <Button title={`Subscribe, ${fmtPrice(billing.data.priceCents)}/month`} icon="card" onPress={() => subscribe.mutate()} busy={subscribe.isPending} />
                   <Meta style={{ justifyContent: "center", marginTop: 6 }}><Icon name="shield" size={12} color={c.muted} /><MetaText>Secure payment by Stripe. Ringo never sees your card.</MetaText></Meta>
+                  <Text style={[s.meta, { textAlign: "center", marginTop: 6, lineHeight: 17 }]}>
+                    Ringo monthly renews automatically at {fmtPrice(billing.data.priceCents)} each month until you cancel. Cancel anytime in Manage subscription; you keep access until the end of the paid month.{" "}
+                    <Text accessibilityRole="link" style={{ color: c.primaryText }} onPress={() => Linking.openURL(`${config.webUrl}/terms.html`)}>Terms</Text> ·{" "}
+                    <Text accessibilityRole="link" style={{ color: c.primaryText }} onPress={() => Linking.openURL(`${config.webUrl}/privacy.html`)}>Privacy</Text>
+                  </Text>
                   {subscribe.error ? <ErrorBox error={subscribe.error} /> : null}
                 </>
               )}
@@ -299,6 +306,13 @@ export default function Settings() {
 
           <Acc icon="gear" title="Account" sub={d?.email} {...section("account")}>
             {d?.isAdmin ? <Button title="Dashboard" icon="trend" kind="secondary" onPress={() => router.push("/admin")} /> : null}
+            <Button title="Send feedback" icon="star" kind="secondary" onPress={() => router.push("/feedback")} />
+            <View style={{ flexDirection: "row", justifyContent: "center", gap: 14, marginTop: 4 }}>
+              <Text accessibilityRole="link" style={[s.meta, { color: c.primaryText }]} onPress={() => Linking.openURL("mailto:support@ringo.app")}>Help & support</Text>
+              <Text accessibilityRole="link" style={[s.meta, { color: c.primaryText }]} onPress={() => Linking.openURL(`${config.webUrl}/privacy.html`)}>Privacy</Text>
+              <Text accessibilityRole="link" style={[s.meta, { color: c.primaryText }]} onPress={() => Linking.openURL(`${config.webUrl}/terms.html`)}>Terms</Text>
+            </View>
+            <Text style={[s.meta, { textAlign: "center" }]}>Ringo {Constants.expoConfig?.version ?? ""}</Text>
             <Button title="Sign out" icon="back" kind="ghost" onPress={signOut} />
             <Button title="Delete my account" icon="trash" kind="danger" busy={delMe.isPending}
               onPress={async () => { if (await confirm("This permanently deletes your profile, call history, messages and recordings. It can't be undone.")) delMe.mutate(); }} />

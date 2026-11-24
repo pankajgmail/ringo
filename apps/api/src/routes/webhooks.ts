@@ -3,7 +3,7 @@ import { and, desc, eq, gt, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "../db/client.ts";
 import { env } from "../env.ts";
 import { audit } from "../lib/audit.ts";
-import { forgetMessages, parseReply, validTwilio } from "../services/messaging.ts";
+import { HELP_TEXT, forgetMessages, keyword, parseReply, validTwilio } from "../services/messaging.ts";
 import { publish } from "../services/live.ts";
 import { handleStripeEvent, stripe } from "../services/billing.ts";
 
@@ -31,7 +31,19 @@ export async function webhookRoutes(app: FastifyInstance) {
     const text = (p.Body ?? "").trim();
     if (!from || !text) return twiml();
     const users = await db.select({ id: schema.users.id }).from(schema.users).where(and(eq(schema.users.phone, from), isNotNull(schema.users.phoneVerifiedAt)));
-    if (!users.length) return twiml();
+
+    // STOP / HELP: never an answer to a call. STOP also switches the user back to in-app questions.
+    // Twilio sends its own opt-out confirmation, so Ringo doesn't reply to STOP.
+    const kw = keyword(text, p.OptOutType);
+    if (kw === "help") return twiml(HELP_TEXT);
+    if (kw === "stop") {
+      for (const u of users) {
+        await db.update(schema.users).set({ infoMode: "prompt" }).where(and(eq(schema.users.id, u.id), inArray(schema.users.infoMode, ["sms", "whatsapp"])));
+        await audit(u.id, "sms.opt_out", {});
+      }
+      return twiml();
+    }
+    if (kw === "start" || !users.length) return twiml();
 
     const [open] = await db.select({ ask: schema.asks, userId: schema.outCalls.userId, callId: schema.outCalls.id, name: schema.outCalls.name })
       .from(schema.asks).innerJoin(schema.outCalls, eq(schema.asks.outCallId, schema.outCalls.id))

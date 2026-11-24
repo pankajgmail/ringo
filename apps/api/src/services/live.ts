@@ -31,7 +31,7 @@ export async function push(userId: string, title: string, body: string, data: Re
   const rows = await db.select().from(schema.pushTokens).where(eq(schema.pushTokens.userId, userId));
   const messages: ExpoPushMessage[] = rows
     .filter((r) => Expo.isExpoPushToken(r.token))
-    .map((r) => ({ to: r.token, title, body, data, sound: "default", priority: "high" }));
+    .map((r) => ({ to: r.token, title, body, data, sound: "default", priority: "high", channelId: "calls" }));
   if (!messages.length) return;
   const dead: string[] = [];
   for (const chunk of expo.chunkPushNotifications(messages)) {

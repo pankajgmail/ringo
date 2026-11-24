@@ -52,7 +52,7 @@ export function parseReply(kind: "decision" | "code" | "info", text: string): { 
   if (kind === "decision") {
     if (/^(1|yes|y|accept|ok|okay|sure)$/.test(w)) return { choice: "accept", note: null };
     if (/^(2|no|n|decline|counter)$/.test(w)) return { choice: "counter", note: null };
-    if (/^(4|end|hang up|hangup)$/.test(w)) return { choice: "end", note: null };
+    if (/^(4|hang up|hangup)$/.test(w)) return { choice: "end", note: null };
     // Anything else on a decision is passed on as an instruction.
     return { choice: "reply", note: t.slice(0, 500) };
   }
@@ -60,8 +60,20 @@ export function parseReply(kind: "decision" | "code" | "info", text: string): { 
 }
 
 /** The text Ringo sends. Kept short: it's read on a lock screen. */
+/** Carrier keywords (CTIA). Twilio blocks or allows sending on these itself; Ringo must not pass them to a call. */
+const STOP_WORDS = ["stop", "stopall", "unsubscribe", "cancel", "end", "quit", "optout", "revoke"];
+const HELP_WORDS = ["help", "info"];
+export function keyword(text: string, optOutType?: string): "stop" | "help" | "start" | null {
+  const t = optOutType?.toLowerCase() || text.trim().toLowerCase().replace(/[^a-z]/g, "");
+  if (STOP_WORDS.includes(t)) return "stop";
+  if (HELP_WORDS.includes(t)) return "help";
+  if (t === "start" || t === "unstop") return "start";
+  return null;
+}
+export const HELP_TEXT = "Ringo: texts only come during calls you start, to ask you a question. Reply STOP to stop texts. Help: support@ringo.app. Msg & data rates may apply.";
+
 export function questionText(kind: "decision" | "code" | "info", business: string, question: string) {
   return kind === "decision"
-    ? `Ringo (${business}): ${question}\nReply 1 to accept, 2 to decline, 3 to join the call, 4 to end it.`
+    ? `Ringo (${business}): ${question}\nReply 1 to accept, 2 to decline, 3 to join the call, 4 to hang up.`
     : `Ringo (${business}): ${question}\nReply with the answer, or JOIN to be connected to the call. Ringo waits 2 minutes.`;
 }

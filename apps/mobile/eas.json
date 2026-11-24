@@ -1,5 +1,8 @@
 {
-  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "base": {
       "node": "24.22.1",
@@ -11,9 +14,45 @@
         "EXPO_PUBLIC_DEV_USER": ""
       }
     },
-    "development": { "extends": "base", "developmentClient": true, "distribution": "internal", "ios": { "simulator": true } },
-    "preview": { "extends": "base", "distribution": "internal", "env": { "EXPO_PUBLIC_APPLE_SIGN_IN": "false" } },
-    "production": { "extends": "base", "autoIncrement": true, "env": { "EXPO_PUBLIC_APPLE_SIGN_IN": "true" } }
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APPLE_SIGN_IN": "false"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_APPLE_SIGN_IN": "true"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
   },
-  "submit": { "production": { "ios": { "ascAppId": "SET_AFTER_CREATING_THE_APP_IN_APP_STORE_CONNECT" } } }
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "SET_AFTER_CREATING_THE_APP_IN_APP_STORE_CONNECT"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
+  }
 }

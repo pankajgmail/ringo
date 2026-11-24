@@ -43,6 +43,8 @@ Ringo deploys to AWS account `334076860223` in **US East (Ohio) `us-east-2`**, p
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | Twilio console |
 | `DEFAULT_FROM_NUMBER` | Your Twilio number, e.g. `+14155550142` |
 | `GOOGLE_PLACES_API_KEY` | Google Places API (New) key for business search in New call. Restrict it to Places API (New). `unset` = only national brands are searchable |
+| `TWILIO_SIP_TRUNK_SID`, `TWILIO_TERMINATION_URI`, `TWILIO_SIP_USERNAME`, `TWILIO_SIP_PASSWORD` | SIP trunk (section 1), used to buy per-user Ringo numbers and import them into Retell |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe secret key and webhook signing secret (section 7). `-` = billing off, calls unlimited |
 
 **Console:** Systems Manager → **Parameter Store** → **Create parameter**. Set the name to e.g. `/ringo/dev/google-client-secret`, Tier **Standard**, Type **SecureString**, KMS key **My current account** (`alias/aws/ssm`), paste the bare value, and click **Create parameter**.
 
@@ -72,7 +74,17 @@ STAGE=prod GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com DOMAIN=example.com n
 
 The outputs give `ApiUrl`, `UserPoolId`, `UserPoolClientId`, `CognitoDomain` and `ParameterPath`. The container runs DB migrations on start. RDS gets its password from `db-password`, and KMS + Cognito settings are injected by the stack.
 
-Set `PUBLIC_URL`, then re-run `retell:setup` so webhooks and tools point at the deployed API. With a custom domain, use `ApiUrl`. Without one, use the ALB address (`ApiServiceURL…` output, plain HTTP), not `ApiUrl`/`WebUrl`: CloudFront cuts origin requests off at 60 seconds, and the `ask_user` tool waits up to 90.
+Set `PUBLIC_URL` to the HTTPS URL (`ApiUrl` with a custom domain, otherwise the CloudFront `WebUrl`), then re-run `retell:setup` so webhooks and tools point at the deployed API. Retell only calls HTTPS. Each `ask_user` / `wait_for_answer` request returns within 50 s, inside CloudFront's 60 s origin timeout; longer waits are chained.
+
+Optional CDK context (`-c key=value`, or `RINGO_CDK_EXTRA` in the deploy scripts):
+
+| Context | Effect |
+|---|---|
+| `adminEmails` | Comma-separated emails that can open the admin dashboard |
+| `smsFrom` | Number mid-call questions are texted from (default `DEFAULT_FROM_NUMBER`) |
+| `whatsappFrom`, `whatsappJoin` | WhatsApp sender (`whatsapp:+14155238886` for the sandbox) and its join phrase, spaces as `_` |
+| `appleTeamId`, `appleKeyId`, `appleServicesId` | Sign in with Apple (see [store-launch.md](store-launch.md)) |
+| `domainName` | Custom domain: `api.<domain>` and `app.<domain>` with ACM + Route 53 |
 
 The web app is served at the `WebUrl` output. `npm run deploy` builds it (`expo export --platform web`) and uploads it; on the very first deploy it is skipped because the Cognito client ID doesn't exist yet, so run the deploy a second time.
 
@@ -81,4 +93,30 @@ The web app is served at the `WebUrl` output. `npm run deploy` builds it (`expo 
 Set these in `apps/mobile/app.json` → `extra`, or via `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_COGNITO_DOMAIN` and `EXPO_PUBLIC_COGNITO_CLIENT_ID`. The stack already registers `ringo://auth`, `http://localhost:8081/auth` and `https://app.<domainName>/auth` as callback URLs. Release builds always require Google; the dev bypass only works in `__DEV__` builds against an API running with `AUTH_DEV_BYPASS=true`.
 
 - Web: `npx expo export -p web` from `apps/mobile`, then host `dist/` (S3 + CloudFront, or any static host).
-- iOS / Android: `npx eas build` (requires an Expo account; add `eas.json`). Push notifications need an APNs key and FCM credentials in EAS.
+- iOS / Android: EAS builds and store submission, step by step in [store-launch.md](store-launch.md).
+
+## 7. Stripe billing
+
+5 free calls, then $9.99/month (`FREE_CALLS`, `PLAN_PRICE_CENTS` in `packages/shared/src/domain.ts`).
+
+1. In the Stripe dashboard, go to **Developers → API keys**. Copy the secret key: `sk_test_…` to try it, `sk_live_…` for real payments.
+2. Run `sh ~/ringo-billing-deploy.sh` in Terminal. It stores the key, creates the webhook endpoint `<url>/v1/webhooks/stripe` (checkout and subscription events), stores its signing secret and redeploys.
+3. Turn on the **Customer Portal** (Settings → Billing → Customer portal) so "Manage subscription" works. Allow cancel and payment-method updates.
+
+## 8. Text replies (SMS / WhatsApp)
+
+- **SMS**:
+  - The sending number's *A message comes in* webhook must be `<url>/v1/webhooks/twilio/message` (POST). The billing deploy script sets it.
+  - US delivery needs **A2P 10DLC**: Twilio Console → Messaging → Regulatory compliance. Register the brand, then a campaign (use case "Customer care" / "Account notifications"). Sample messages are in `questionText` (`apps/api/src/services/messaging.ts`). Opt-out handles STOP and HELP. Add the number to the campaign's messaging service.
+- **WhatsApp sandbox**:
+  - Twilio Console → Messaging → Try it out → WhatsApp. Set *When a message comes in* to the same URL (POST).
+  - Deploy with `-c whatsappFrom=whatsapp:+14155238886 -c whatsappJoin=join_your-words`.
+  - Each user sends the join phrase once; Settings shows it.
+
+## 9. Google Calendar
+
+Calendar connect uses the same Google OAuth web client as sign-in.
+
+1. In Google Cloud, go to **APIs & Services → Library** and enable the **Google Calendar API**.
+2. On the OAuth client, add the authorized redirect URI `<PUBLIC_URL>/v1/calendar/callback`.
+3. Add the scopes `calendar.freebusy` and `calendar.events` on the consent screen. Sensitive scopes need Google verification before public launch; until then, add test users.

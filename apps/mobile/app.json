@@ -3,16 +3,11 @@
     "name": "Ringo",
     "slug": "ringo",
     "scheme": "ringo",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/ringo-icon-1024.png",
+    "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0b0f1a",
-    "splash": {
-      "image": "./assets/ringo-mark-1024.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0b0f1a"
-    },
     "ios": {
       "bundleIdentifier": "app.ringo.mobile",
       "buildNumber": "1",
@@ -31,7 +26,8 @@
         "NSContactsUsageDescription": "Ringo uses your contacts only when you pick someone for Ringo to call. Contacts never leave your phone except the one you choose.",
         "LSApplicationQueriesSchemes": [
           "tel"
-        ]
+        ],
+        "CFBundleDisplayName": "Ringo"
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -108,6 +104,14 @@
             "NSPrivacyCollectedDataTypePurposes": [
               "NSPrivacyCollectedDataTypePurposeAppFunctionality"
             ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePurchaseHistory",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
           }
         ],
         "NSPrivacyAccessedAPITypes": [
@@ -141,8 +145,10 @@
     "android": {
       "package": "app.ringo.mobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/ringo-mark-1024.png",
-        "backgroundColor": "#0b0f1a"
+        "foregroundImage": "./assets/android-foreground.png",
+        "backgroundImage": "./assets/android-background.png",
+        "monochromeImage": "./assets/android-monochrome.png",
+        "backgroundColor": "#6366F1"
       },
       "permissions": [
         "POST_NOTIFICATIONS",
@@ -155,9 +161,12 @@
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.WRITE_CONTACTS",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.CAMERA"
       ],
-      "allowBackup": false
+      "allowBackup": false,
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -166,11 +175,22 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#0b0f1a"
+        }
+      ],
       "expo-secure-store",
       [
         "expo-notifications",
         {
-          "color": "#7c6cf6"
+          "icon": "./assets/notification-icon.png",
+          "color": "#7c6cf6",
+          "defaultChannel": "calls"
         }
       ],
       [
@@ -189,7 +209,9 @@
             "usesCleartextTraffic": false
           }
         }
-      ]
+      ],
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
@@ -204,6 +226,8 @@
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    }
+    },
+    "description": "Ringo is an AI phone assistant. It calls businesses for you, waits on hold, asks you when it needs a decision, and answers calls you miss.",
+    "primaryColor": "#7c6cf6"
   }
 }
