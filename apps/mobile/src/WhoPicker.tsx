@@ -61,16 +61,16 @@ export function WhoPicker({ mode, onMode, who, onWho, defaultNear }: { mode: Who
     setContactErr("");
     try {
       const r = await pickContact();
-      if (r === "unsupported") setContactErr("This browser can't open your contacts. Use the Ringo app on your phone, or choose Other and type the number.");
+      if (r === "unsupported") setContactErr("This browser can't open your contacts. Use the Ringvo app on your phone, or choose Other and type the number.");
       else if (r) onWho({ providerId: "custom", name: r.name, number: r.number });
     } catch {
-      setContactErr("Couldn't open your contacts. Check that Ringo is allowed to use them.");
+      setContactErr("Couldn't open your contacts. Check that Ringvo is allowed to use them.");
     }
   };
 
   return (
     <View>
-      <Seg<WhoMode> label="Who should Ringo call" value={mode} onChange={switchMode}
+      <Seg<WhoMode> label="Who should Ringvo call" value={mode} onChange={switchMode}
         options={[{ value: "provider", label: "Business", icon: "store" }, { value: "contact", label: "Contacts", icon: "users" }, { value: "other", label: "Other", icon: "phone" }]} />
 
       {mode === "provider" ? (

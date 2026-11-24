@@ -103,7 +103,7 @@ describe("ask_user for missing information", () => {
     expect(r3.instruction).toMatch(/2 minutes/);
     expect(tables.asks[0]!.answer).toBe("timeout");
 
-    await advance(21_000); // grace period, then Ringo ends the call itself
+    await advance(21_000); // grace period, then Ringvo ends the call itself
     expect(stop).toHaveBeenCalledWith("c1");
   });
 
@@ -113,7 +113,7 @@ describe("ask_user for missing information", () => {
     expect(r).toMatchObject({ answered: false, conference: true });
     expect(r.instruction).toMatch(/conference_user/);
     expect(tables.asks[0]).toMatchObject({ via: "conference", kind: "info" });
-    expect(pushes).toEqual(["Verizon: Ringo is calling you"]);
+    expect(pushes).toEqual(["Verizon: Ringvo is calling you"]);
   });
 
   it("conference mode still asks for texted codes in the app", async () => {

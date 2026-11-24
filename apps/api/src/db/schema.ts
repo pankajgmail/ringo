@@ -47,9 +47,9 @@ export const users = pgTable("users", {
   /** Google Calendar link. The refresh token is envelope-encrypted (KMS), bound to the user id. */
   googleCalendarEmail: text("google_calendar_email"),
   googleRefreshToken: bytea("google_refresh_token"),
-  /** Ringo may read free/busy before agreeing a time. */
+  /** Ringvo may read free/busy before agreeing a time. */
   calendarCheck: boolean("calendar_check").notNull().default(true),
-  /** Ringo may add confirmed bookings and appointments to the calendar. */
+  /** Ringvo may add confirmed bookings and appointments to the calendar. */
   calendarSave: boolean("calendar_save").notNull().default(true),
   forwardingActive: boolean("forwarding_active").notNull().default(false),
   monthlyBudgetCents: integer("monthly_budget_cents").notNull().default(2000),
@@ -104,7 +104,7 @@ export const asks = pgTable("asks", {
   outCallId: uuid("out_call_id").notNull().references(() => outCalls.id, { onDelete: "cascade" }),
   /**
    * "decision" = accept/counter/takeover/end; "code" = free text such as an OTP the provider texted the user;
-   * "info" = something the rep asked for that Ringo doesn't have (account number, PIN, party size).
+   * "info" = something the rep asked for that Ringvo doesn't have (account number, PIN, party size).
    */
   kind: text("kind").$type<"decision" | "code" | "info">().notNull().default("decision"),
   question: text("question").notNull(),

@@ -50,7 +50,7 @@ export async function connect(userId: string, code: string) {
   const t = await tokenRequest({ code, grant_type: "authorization_code", redirect_uri: redirectUri() });
   const granted = (t.scope ?? "").split(" ");
   if (!granted.includes(SCOPES[2]!) && !granted.includes(SCOPES[3]!)) throw new CalendarError("Calendar access wasn't granted.");
-  if (!t.refresh_token) throw new CalendarError("Google didn't return offline access. Remove Ringo at myaccount.google.com/permissions and try again.");
+  if (!t.refresh_token) throw new CalendarError("Google didn't return offline access. Remove Ringvo at myaccount.google.com/permissions and try again.");
   const email = t.id_token ? (JSON.parse(Buffer.from(t.id_token.split(".")[1]!, "base64url").toString()) as { email?: string }).email ?? null : null;
   await db.update(schema.users).set({
     googleRefreshToken: await encrypt(t.refresh_token, ctx(userId)), googleCalendarEmail: email,
@@ -81,7 +81,7 @@ async function forget(userId: string) {
   await db.update(schema.users).set({ googleRefreshToken: null, googleCalendarEmail: null }).where(eq(schema.users.id, userId));
 }
 
-/** Revokes Ringo's access at Google (best effort) and removes the stored token. */
+/** Revokes Ringvo's access at Google (best effort) and removes the stored token. */
 export async function disconnect(u: Linked) {
   if (u.googleRefreshToken) {
     const rt = await decrypt(u.googleRefreshToken, ctx(u.id)).catch(() => null);
@@ -112,7 +112,7 @@ export async function addEvent(u: Linked, e: { title: string; start: Date; minut
   const r = await google<{ id?: string }>(u, "/calendars/primary/events", {
     summary: e.title, description: e.description,
     start: { dateTime: e.start.toISOString(), timeZone: e.tz }, end: { dateTime: new Date(e.start.getTime() + e.minutes * 60_000).toISOString(), timeZone: e.tz },
-    reminders: { useDefault: true }, source: { title: "Ringo", url: env.PUBLIC_URL },
+    reminders: { useDefault: true }, source: { title: "Ringvo", url: env.PUBLIC_URL },
   });
   return r.id ?? null;
 }

@@ -34,7 +34,7 @@ type RetellCall = {
 
 // Retell reaches the API over HTTPS through CloudFront, which ends requests after 60s, so answer before that.
 const ASK_TIMEOUT_MS = 50_000; // tool timeout in the agent config is 58s
-/** After the 2-minute info wait runs out, how long the agent gets to wrap up before Ringo hangs up itself. */
+/** After the 2-minute info wait runs out, how long the agent gets to wrap up before Ringvo hangs up itself. */
 const END_GRACE_MS = 20_000;
 
 async function verified(req: FastifyRequest) {
@@ -94,7 +94,7 @@ export async function retellRoutes(app: FastifyInstance) {
       }).where(eq(schema.outCalls.id, row.id));
       if (row.status === "cancelled") return reply.code(204).send();
       if (await maybeRedial(row, call.disconnection_reason)) {
-        publish(row.userId, { type: "call.stage", callId: row.id, stage: "queue", line: "Line was busy. Ringo will try again in 10 minutes." });
+        publish(row.userId, { type: "call.stage", callId: row.id, stage: "queue", line: "Line was busy. Ringvo will try again in 10 minutes." });
       }
       // Final outcome arrives with call_analyzed.
     } else if (event === "call_analyzed") {
@@ -114,13 +114,13 @@ export async function retellRoutes(app: FastifyInstance) {
       });
       if (user && extra.appointmentAt) await saveToCalendar(user, { ...row, ...extra, reference: data.reference_number ? String(data.reference_number) : null, summary: String(data.result_summary || "") }, tz);
       if (extra.followUpAt) {
-        await push(row.userId, `Follow up with ${row.name}?`, `They said to call back ${fmtDay(extra.followUpAt, tz)}. Tap to have Ringo do it.`, { outCallId: row.id });
+        await push(row.userId, `Follow up with ${row.name}?`, `They said to call back ${fmtDay(extra.followUpAt, tz)}. Tap to have Ringvo do it.`, { outCallId: row.id });
       }
     }
     return reply.code(204).send();
   });
 
-  /** Inbound routing: a forwarded call hit a Ringo number. Choose the user and inject their context. */
+  /** Inbound routing: a forwarded call hit a Ringvo number. Choose the user and inject their context. */
   app.post("/retell/inbound", async (req) => {
     const { call_inbound } = req.body as { call_inbound: { from_number: string; to_number: string } };
     const user = await userByRingoNumber(call_inbound.to_number);
@@ -151,14 +151,14 @@ export async function retellRoutes(app: FastifyInstance) {
     publish(row.userId, { type: "call.stage", callId: row.id, stage, line: args.note ?? "" });
     const personNow = stage === "talk" && row.stage !== "talk";
     if (personNow && row.holdForMe) {
-      await push(row.userId, `${row.name}: a person is on the line`, "Ringo is calling you now to connect you. Pick up!", { outCallId: row.id });
+      await push(row.userId, `${row.name}: a person is on the line`, "Ringvo is calling you now to connect you. Pick up!", { outCallId: row.id });
       publish(row.userId, { type: "call.stage", callId: row.id, stage, line: "A person answered. Calling you to connect…" });
       return {
         ok: true,
-        instruction: `Hold for me is on: the account holder wants to talk to the rep themselves. Say: "Hi, thanks for picking up. I'm Ringo, an AI assistant for {{user_name}}. They'd like to speak with you directly, I'm connecting them now, one moment," then call conference_user. If they don't pick up, carry on with the goal yourself.`,
+        instruction: `Hold for me is on: the account holder wants to talk to the rep themselves. Say: "Hi, thanks for picking up. I'm Ringvo, an AI assistant for {{user_name}}. They'd like to speak with you directly, I'm connecting them now, one moment," then call conference_user. If they don't pick up, carry on with the goal yourself.`,
       };
     }
-    if (personNow && row.stage === "hold") await push(row.userId, `${row.name} picked up`, "Ringo is talking to a person now.", { outCallId: row.id });
+    if (personNow && row.stage === "hold") await push(row.userId, `${row.name} picked up`, "Ringvo is talking to a person now.", { outCallId: row.id });
     return { ok: true };
   });
 
@@ -193,7 +193,7 @@ export async function retellRoutes(app: FastifyInstance) {
   });
 
   /**
-   * Ask the user something mid-call: an offer to approve, a one-time code they were texted, or information Ringo
+   * Ask the user something mid-call: an offer to approve, a one-time code they were texted, or information Ringvo
    * doesn't keep (account number, PIN, party size). Pushes to the app and long-polls for the answer.
    * Each request must finish inside CloudFront's 60s, so a 2-minute wait is split: if there's no answer after ~50s
    * the agent is told to keep the rep engaged and call wait_for_answer.
@@ -217,7 +217,7 @@ export async function retellRoutes(app: FastifyInstance) {
       if (user?.infoMode === "conference" && user.phone) {
         await db.insert(schema.asks).values({ outCallId: row.id, kind, question: args.question, via: "conference", expiresAt: new Date(Date.now() + INFO_WAIT_MS) });
         publish(row.userId, { type: "call.stage", callId: row.id, stage: "talk", line: `Calling you to join: ${args.question}` });
-        await push(row.userId, `${row.name}: Ringo is calling you`, `Pick up to join the call. The rep needs: ${args.question}`, { outCallId: row.id });
+        await push(row.userId, `${row.name}: Ringvo is calling you`, `Pick up to join the call. The rep needs: ${args.question}`, { outCallId: row.id });
         return { answered: false, conference: true, instruction: CONFERENCE_INSTRUCTION };
       }
     }
@@ -291,7 +291,7 @@ async function respond(askId: string, row: Row, kind: "decision" | "code" | "inf
       instruction: kind === "decision" ? "The account holder didn't respond. Don't accept anything. Ask for a reference number and say they'll call back." : TIMEOUT_INSTRUCTION,
     };
   }
-  // Codes and account details go to the agent once; Ringo doesn't keep them.
+  // Codes and account details go to the agent once; Ringvo doesn't keep them.
   if (answered.answer === "reply" && kind !== "decision") await db.update(schema.asks).set({ note: null }).where(eq(schema.asks.id, askId));
   if (answered.messageSids?.length) void forgetMessages(answered.messageSids);
   const instructions: Record<string, string> = {
@@ -356,7 +356,7 @@ async function saveToCalendar(user: typeof schema.users.$inferSelect, c: Row & {
     const id = await addEvent(user, {
       title: c.category === "reservation" ? `${c.name}${party ? ` (table for ${party})` : ""}` : `${c.name} appointment`,
       start: c.appointmentAt, minutes: c.category === "reservation" ? 90 : 60, tz,
-      description: [c.summary, c.reference ? `Confirmation: ${c.reference}` : "", `Phone: ${c.number}`, "Booked by Ringo"].filter(Boolean).join("\n"),
+      description: [c.summary, c.reference ? `Confirmation: ${c.reference}` : "", `Phone: ${c.number}`, "Booked by Ringvo"].filter(Boolean).join("\n"),
     });
     if (!id) return;
     await db.update(schema.outCalls).set({ calendarEventId: id }).where(eq(schema.outCalls.id, c.id));

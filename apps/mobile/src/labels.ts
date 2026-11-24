@@ -3,7 +3,7 @@ import type { IconName } from "./icons.ts";
 import { c } from "./theme.ts";
 
 export const CATEGORY: Record<Category, { label: string; icon: IconName; placeholder: string; quick: [string, string][] }> = {
-  billing: { label: "Billing", icon: "receipt", placeholder: "What should Ringo get done?", quick: [["Waive late fee", "Get the late fee on my latest bill waived."], ["Remove extra charge", "Remove the unexpected extra charge on my latest bill."], ["Lower my bill", "Ask for any discount or promo to lower my monthly bill."]] },
+  billing: { label: "Billing", icon: "receipt", placeholder: "What should Ringvo get done?", quick: [["Waive late fee", "Get the late fee on my latest bill waived."], ["Remove extra charge", "Remove the unexpected extra charge on my latest bill."], ["Lower my bill", "Ask for any discount or promo to lower my monthly bill."]] },
   service: { label: "Service", icon: "wrench", placeholder: "What should change?", quick: [["Cancel service", "Cancel my service effective the end of this billing cycle."], ["Change plan", "Move me to a cheaper plan with similar features."], ["Report outage", "Report a service outage at my address and ask for a credit."]] },
   reservation: { label: "Booking", icon: "utensils", placeholder: "Any special requests?", quick: [["Quiet table", "Request a quiet table."], ["Birthday", "It's a birthday celebration."], ["Window seat", "Request a window seat if possible."]] },
   general: { label: "Other", icon: "help", placeholder: "What do you need to know?", quick: [["Order status", "Ask for the status of my latest order."], ["Opening hours", "Ask for their opening hours this week."]] },

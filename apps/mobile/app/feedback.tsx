@@ -52,10 +52,10 @@ export default function FeedbackScreen() {
 
   return (
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <PageHeader title="Send feedback" sub="Help make Ringo better" />
+      <PageHeader title="Send feedback" sub="Help make Ringvo better" />
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <Card>
-          <Text style={[s.h, { textAlign: "center" }]}>How's Ringo working for you?</Text>
+          <Text style={[s.h, { textAlign: "center" }]}>How's Ringvo working for you?</Text>
           <Stars value={rating} onChange={setRating} />
           <Text style={[s.muted, { textAlign: "center", minHeight: 20 }]} accessibilityLiveRegion="polite">
             {rating ? `${rating} of 5 · ${WORDS[rating]}` : "Tap a star to rate"}
@@ -65,7 +65,7 @@ export default function FeedbackScreen() {
         <Card>
           <Text style={s.label}>What could be better? (optional)</Text>
           <Field label="Your comments" icon="msg" multiline value={comment} maxLength={MAX} onChangeText={setComment}
-            placeholder="Tell us what you liked, what didn't work, or what you'd like Ringo to do next" style={{ marginTop: 0 }} />
+            placeholder="Tell us what you liked, what didn't work, or what you'd like Ringvo to do next" style={{ marginTop: 0 }} />
           <Text style={[s.meta, { textAlign: "right" }]}>{comment.length}/{MAX}</Text>
         </Card>
         {send.error ? <ErrorLine text={send.error instanceof Error ? send.error.message : "Couldn't send feedback. Try again."} /> : null}

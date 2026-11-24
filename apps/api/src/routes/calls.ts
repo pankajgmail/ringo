@@ -14,7 +14,7 @@ import { assertCanCall } from "../services/billing.ts";
 export async function callRoutes(app: FastifyInstance) {
   app.post("/v1/calls", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (req, reply) => {
     const input = OutCallInputSchema.parse(req.body);
-    if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringo can call for you" });
+    if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringvo can call for you" });
     await assertCanCall(req.user);
     const provider = PROVIDERS.find((p) => p.id === input.providerId);
     const number = input.providerId === "custom" ? input.number! : provider?.number;
@@ -50,7 +50,7 @@ export async function callRoutes(app: FastifyInstance) {
    */
   app.post<{ Params: { id: string } }>("/v1/calls/:id/repeat", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (req, reply) => {
     const { scheduledAt } = RepeatCallSchema.parse(req.body ?? {});
-    if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringo can call for you" });
+    if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringvo can call for you" });
     await assertCanCall(req.user);
     const [src] = await db.select().from(schema.outCalls).where(and(eq(schema.outCalls.id, req.params.id), eq(schema.outCalls.userId, req.user.id)));
     if (!src) return reply.code(404).send({ error: "not found" });
@@ -80,14 +80,14 @@ export async function callRoutes(app: FastifyInstance) {
     return reply.code(201).send(toOutCall(row!));
   });
 
-  /** Missed call → "Have Ringo call them back": a new outbound call to the caller, briefed with their message. */
+  /** Missed call → "Have Ringvo call them back": a new outbound call to the caller, briefed with their message. */
   app.post<{ Params: { id: string } }>("/v1/in-calls/:id/callback", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (req, reply) => {
-    if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringo can call for you" });
+    if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringvo can call for you" });
     await assertCanCall(req.user);
     const body = (req.body ?? {}) as { goal?: string };
     const [ic] = await db.select().from(schema.inCalls).where(and(eq(schema.inCalls.id, req.params.id), eq(schema.inCalls.userId, req.user.id)));
     if (!ic) return reply.code(404).send({ error: "not found" });
-    if (ic.type === "spam") return reply.code(400).send({ error: "Ringo won't call back spam." });
+    if (ic.type === "spam") return reply.code(400).send({ error: "Ringvo won't call back spam." });
     const number = ic.callbackNumber || ic.fromNumber;
     const blocked = checkDialable(number);
     if (blocked) return reply.code(400).send({ error: blocked });
@@ -104,7 +104,7 @@ export async function callRoutes(app: FastifyInstance) {
     return reply.code(201).send(toOutCall(row!));
   });
 
-  /** Money and time Ringo saved, for the home-screen card. */
+  /** Money and time Ringvo saved, for the home-screen card. */
   app.get("/v1/savings", async (req) => {
     const [r] = await db.select({
       savedCents: sql<number>`coalesce(sum(${schema.outCalls.savedCents}), 0)::int`,

@@ -82,7 +82,7 @@ export function LiveCard({ call, onEnd }: { call: OutCall; onEnd?: () => void })
         <View style={st.bubble}>
           <Icon name="sparkles" size={14} color={c.primaryText} />
           <Text style={{ color: c.text, fontSize: 13, lineHeight: 19, flex: 1 }} numberOfLines={3}>
-            {last ? <><Text style={{ fontWeight: "700" }}>{last.role === "agent" ? "Ringo" : "Rep"}: </Text>{last.text}</> : live?.line || "Getting a line…"}
+            {last ? <><Text style={{ fontWeight: "700" }}>{last.role === "agent" ? "Ringvo" : "Rep"}: </Text>{last.text}</> : live?.line || "Getting a line…"}
           </Text>
         </View>
         {onEnd ? (

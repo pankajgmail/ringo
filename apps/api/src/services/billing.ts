@@ -21,7 +21,7 @@ export const isSubscribed = (u: Pick<User, "subscriptionStatus">) => PAYING.has(
 export class PaymentRequired extends Error {
   statusCode = 402;
   constructor() {
-    super(`You've used your ${FREE_CALLS} free calls. Subscribe to keep Ringo calling for you.`);
+    super(`You've used your ${FREE_CALLS} free calls. Subscribe to keep Ringvo calling for you.`);
   }
 }
 
@@ -73,7 +73,7 @@ export async function checkoutUrl(u: User, returnTo: string) {
       quantity: 1,
       price_data: {
         currency: "usd", unit_amount: PLAN_PRICE_CENTS, recurring: { interval: "month" },
-        product_data: { name: "Ringo monthly", description: "Ringo makes and answers calls for you." },
+        product_data: { name: "Ringvo monthly", description: "Ringvo makes and answers calls for you." },
       },
     }],
     subscription_data: { metadata: { userId: u.id } },

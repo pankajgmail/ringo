@@ -43,7 +43,7 @@ export async function placeCall(outCallId: string) {
   }
 
   const from = user.ringoNumber ?? env.DEFAULT_FROM_NUMBER;
-  if (!from) return finish(call.id, user.id, { status: "failed", outcome: "failed", summary: "No Ringo number is assigned to your account yet." });
+  if (!from) return finish(call.id, user.id, { status: "failed", outcome: "failed", summary: "No Ringvo number is assigned to your account yet." });
 
   const isBooking = call.category === "reservation";
   const agentId = isBooking ? env.RETELL_BOOKING_AGENT_ID : env.RETELL_OUTBOUND_AGENT_ID;
@@ -84,7 +84,7 @@ export async function placeCall(outCallId: string) {
     const status = (err as { status?: number }).status;
     if (status && status >= 400 && status < 500 && status !== 408 && status !== 429) {
       console.error("[dialer] Retell rejected call", call.id, err);
-      return finish(call.id, user.id, { status: "failed", outcome: "failed", summary: "Ringo couldn't start this call. Please try again." });
+      return finish(call.id, user.id, { status: "failed", outcome: "failed", summary: "Ringvo couldn't start this call. Please try again." });
     }
     await db.update(schema.outCalls).set({ status: "queued", stage: "queue" }).where(eq(schema.outCalls.id, call.id));
     throw err; // pg-boss retries with backoff

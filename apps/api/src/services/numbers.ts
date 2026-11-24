@@ -6,7 +6,7 @@ import type { User } from "../lib/auth.ts";
 import { audit } from "../lib/audit.ts";
 import { retell, retellConfigured } from "./retell.ts";
 
-// Each user's own "assistant number": a local Twilio number on the Ringo SIP trunk, imported into Retell.
+// Each user's own "assistant number": a local Twilio number on the Ringvo SIP trunk, imported into Retell.
 // Calls the user forwards there reach the inbound agent, which knows whose line it is by the number dialled.
 
 export class NumberError extends Error {
@@ -53,7 +53,7 @@ export async function provisionNumber(user: User): Promise<string> {
 
     const [{ n } = { n: 0 }] = await tx.select({ n: sql<number>`count(*)::int` }).from(schema.users)
       .where(and(isNotNull(schema.users.twilioNumberSid)));
-    if (n >= env.MAX_RINGO_NUMBERS) throw new NumberError(409, "Ringo has handed out all the numbers it can for now. Please try again later.");
+    if (n >= env.MAX_RINGO_NUMBERS) throw new NumberError(409, "Ringvo has handed out all the numbers it can for now. Please try again later.");
 
     const phoneNumber = await findNumber(fresh);
     const bought = await tw!.incomingPhoneNumbers.create({ phoneNumber, trunkSid: env.TWILIO_SIP_TRUNK_SID, friendlyName: `ringo ${fresh.id}` });
@@ -81,7 +81,7 @@ export async function provisionNumber(user: User): Promise<string> {
   });
 }
 
-/** Releases a number Ringo bought for this user (Retell first, then Twilio). Shared or hand-linked numbers have no SID and are left alone. */
+/** Releases a number Ringvo bought for this user (Retell first, then Twilio). Shared or hand-linked numbers have no SID and are left alone. */
 export async function releaseNumber(user: Pick<User, "id" | "ringoNumber" | "twilioNumberSid">) {
   if (!user.twilioNumberSid || !user.ringoNumber || !tw) return;
   if (retellConfigured) await retell.phoneNumber.delete(user.ringoNumber).catch(() => undefined);

@@ -1,5 +1,5 @@
 /**
- * Creates or updates Ringo's Retell LLMs + agents, and (optionally) imports a Twilio number.
+ * Creates or updates Ringvo's Retell LLMs + agents, and (optionally) imports a Twilio number.
  *   npm run retell:setup                     # agents only
  *   npm run retell:setup -- --import +14155550142   # also attach this Twilio number via the SIP trunk
  * Prints the agent IDs to put in .env / Secrets Manager. Safe to re-run: matches existing agents by name.
@@ -38,7 +38,7 @@ const waitForAnswer = tool("wait_for_answer", "Keep waiting for the account hold
   ask_id: { type: "string", description: "The ask_id from the previous result." },
 }, [], 58_000);
 
-// Warm transfer to the account holder's own phone. Ringo stays with the rep while it rings (90s, Retell's maximum,
+// Warm transfer to the account holder's own phone. Ringvo stays with the rep while it rings (90s, Retell's maximum,
 // which keeps the whole wait inside the 2-minute limit),
 // briefs the account holder privately, then connects them. If they don't pick up the agent gets the call back.
 const conferenceUser = {

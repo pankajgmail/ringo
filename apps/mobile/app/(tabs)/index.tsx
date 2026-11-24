@@ -24,18 +24,18 @@ function suggestPriority(category: Category, resDate: string): Priority {
 
 const fmtHold = (sec: number) => (sec >= 3600 ? `${(sec / 3600).toFixed(1)}h` : `${Math.round(sec / 60)}m`);
 const fmtMoney = (cents: number) => `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: cents >= 100_00 ? 0 : 2 })}`;
-/** "3h 20m" or "45m": time Ringo spent so the user didn't have to. */
+/** "3h 20m" or "45m": time Ringvo spent so the user didn't have to. */
 const fmtTimeSaved = (sec: number) => { const m = Math.round(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`; };
 
-/** Headline number first: money saved, then the hours Ringo sat on hold or talked for you. */
+/** Headline number first: money saved, then the hours Ringvo sat on hold or talked for you. */
 function SavingsCard({ s: v }: { s: { savedCents: number; monthSavedCents: number; holdSec: number; talkSec: number; done: number } }) {
   if (!v.done && !v.savedCents && !v.talkSec) return null;
   return (
     <View style={[s.card, { flexDirection: "row", alignItems: "center", gap: 14 }]} accessible
-      accessibilityLabel={`Ringo has saved you ${fmtMoney(v.savedCents)} and ${fmtTimeSaved(v.talkSec)} on the phone, including ${fmtTimeSaved(v.holdSec)} on hold`}>
+      accessibilityLabel={`Ringvo has saved you ${fmtMoney(v.savedCents)} and ${fmtTimeSaved(v.talkSec)} on the phone, including ${fmtTimeSaved(v.holdSec)} on hold`}>
       <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: c.okSoft, alignItems: "center", justifyContent: "center" }}><Icon name="sparkles" color={c.ok} /></View>
       <View style={{ flex: 1 }}>
-        <Text style={s.meta}>Ringo has saved you</Text>
+        <Text style={s.meta}>Ringvo has saved you</Text>
         <Text style={{ color: c.text, fontSize: 24, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
           {fmtMoney(v.savedCents)} <Text style={{ color: c.muted, fontSize: 15, fontWeight: "600" }}>and {fmtTimeSaved(v.talkSec)}</Text>
         </Text>
@@ -117,11 +117,11 @@ export default function OutCall() {
 
   const submit = () => {
     if (profileIncomplete) return setFormErr("Finish your profile and verify your phone first.");
-    if (!who) return setFormErr(whoMode === "contact" ? "Pick a contact for Ringo to call." : whoMode === "other" ? "Add a name and phone number." : "Search and pick who Ringo should call.");
+    if (!who) return setFormErr(whoMode === "contact" ? "Pick a contact for Ringvo to call." : whoMode === "other" ? "Add a name and phone number." : "Search and pick who Ringvo should call.");
     if (who.providerId === "custom" && (!who.name.trim() || !/^\+1\d{10}$/.test(toE164(who.number)))) return setFormErr("Add a name and a US or Canada phone number.");
-    if (goal.trim().length < 3) return setFormErr(category === "reservation" ? "Add any special requests, or just \"No special requests\"." : "Tell Ringo what to get done.");
+    if (goal.trim().length < 3) return setFormErr(category === "reservation" ? "Add any special requests, or just \"No special requests\"." : "Tell Ringvo what to get done.");
     if (category === "reservation" && !/^\d{4}-\d{2}-\d{2}$/.test(resDate)) return setFormErr("Booking date must look like 2026-11-14.");
-    if (when === "later" && Number.isNaN(new Date(scheduledAt.trim().replace(" ", "T")).getTime())) return setFormErr("Pick when Ringo should call, like 2026-11-24 09:00.");
+    if (when === "later" && Number.isNaN(new Date(scheduledAt.trim().replace(" ", "T")).getTime())) return setFormErr("Pick when Ringvo should call, like 2026-11-24 09:00.");
     setFormErr("");
     create.mutate();
   };
@@ -139,12 +139,12 @@ export default function OutCall() {
       </Stats>
 
       {profileIncomplete ? (
-        <Pressable onPress={() => router.push("/settings")} accessibilityRole="button" accessibilityLabel="Finish your profile so Ringo can call for you"
+        <Pressable onPress={() => router.push("/settings")} accessibilityRole="button" accessibilityLabel="Finish your profile so Ringvo can call for you"
           style={[s.card, { flexDirection: "row", alignItems: "center", gap: 10, borderColor: "rgba(251,191,36,.45)", backgroundColor: "rgba(245,158,11,.08)" }]}>
           <Icon name="user" color={c.warn} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: c.text, fontWeight: "700" }}>Finish your profile</Text>
-            <Text style={s.meta}>Add your name and ZIP code, and verify your phone, so Ringo can call for you.</Text>
+            <Text style={s.meta}>Add your name and ZIP code, and verify your phone, so Ringvo can call for you.</Text>
           </View>
           <Icon name="right" size={18} color={c.warn} />
         </Pressable>
@@ -186,7 +186,7 @@ export default function OutCall() {
 
       {live.map((call) => <LiveCard key={call.id} call={call} onEnd={() => cancel.mutate(call.id)} />)}
 
-      <Acc icon="plus" title="New call" sub="Ringo calls for you" {...section("new")}>
+      <Acc icon="plus" title="New call" sub="Ringvo calls for you" {...section("new")}>
         <StepLabel>Who</StepLabel>
         <WhoPicker mode={whoMode} onMode={setWhoMode} who={who} onWho={setWho} defaultNear={me.data?.zip || nearFrom(me.data?.address)} />
 
@@ -233,11 +233,11 @@ export default function OutCall() {
 
         <StepLabel>When a person answers</StepLabel>
         <Seg<"no" | "yes"> label="When a person answers" value={holdForMe ? "yes" : "no"} onChange={(v) => setHoldForMe(v === "yes")}
-          options={[{ value: "no", label: "Ringo handles it", icon: "headphones" }, { value: "yes", label: "Hold for me", icon: "phone" }]} />
+          options={[{ value: "no", label: "Ringvo handles it", icon: "headphones" }, { value: "yes", label: "Hold for me", icon: "phone" }]} />
         {holdForMe ? (
           <Meta style={{ marginTop: 6 }}>
             <Icon name="hourglass" size={12} color={c.muted} />
-            <MetaText>Ringo waits through the menu and hold music, then calls {me.data?.phone ? fmtPhone(me.data.phone) : "you"} and connects you the moment a person picks up.</MetaText>
+            <MetaText>Ringvo waits through the menu and hold music, then calls {me.data?.phone ? fmtPhone(me.data.phone) : "you"} and connects you the moment a person picks up.</MetaText>
           </Meta>
         ) : null}
 
@@ -265,7 +265,7 @@ export default function OutCall() {
         <Button title={holdForMe ? (when === "now" ? "Hold for me now" : "Schedule hold for me") : when === "now" ? "Call now" : "Schedule call"} icon={when === "now" ? "phone" : "cal"} onPress={submit} busy={create.isPending} />
         <Meta style={{ justifyContent: "center", marginTop: 10 }}>
           <Icon name="shield" size={12} color={c.muted} />
-          <MetaText>Ringo tells them it's an AI assistant calling for you.</MetaText>
+          <MetaText>Ringvo tells them it's an AI assistant calling for you.</MetaText>
         </Meta>
       </Acc>
 

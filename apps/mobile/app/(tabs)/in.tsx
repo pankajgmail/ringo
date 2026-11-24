@@ -11,18 +11,18 @@ import { c } from "@/theme.ts";
 
 type Filter = "all" | InCallType;
 
-/** What Ringo does when it picks up, so the user knows what to expect. */
+/** What Ringvo does when it picks up, so the user knows what to expect. */
 function HowRingoAnswers() {
   const steps: [IconName, string][] = [
-    ["clock", "If you don't answer within about 5 rings (30 seconds), the call goes to Ringo."],
-    ["msg", "Ringo greets the caller as your assistant and takes a message with a callback number."],
-    ["tag", "Sales or marketing call? Ringo asks what's in it for you, what value you'd get, how much it costs, and whether a deal ends soon that you'd need to apply by."],
+    ["clock", "If you don't answer within about 5 rings (30 seconds), the call goes to Ringvo."],
+    ["msg", "Ringvo greets the caller as your assistant and takes a message with a callback number."],
+    ["tag", "Sales or marketing call? Ringvo asks what's in it for you, what value you'd get, how much it costs, and whether a deal ends soon that you'd need to apply by."],
     ["ban", "Robocalls and scams are told you're not interested, and the call ends."],
     ["history", "A summary of every call is saved below in Call history."],
   ];
   return (
     <View style={{ gap: 8, marginTop: 12, marginBottom: 4 }}>
-      <Text style={s.label} accessibilityRole="header">How Ringo answers</Text>
+      <Text style={s.label} accessibilityRole="header">How Ringvo answers</Text>
       {steps.map(([icon, text]) => (
         <View key={icon} style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
           <View style={{ marginTop: 1 }}><Icon name={icon} size={16} color={c.primaryText} /></View>
@@ -33,7 +33,7 @@ function HowRingoAnswers() {
   );
 }
 
-/** The answers a sales caller gave to Ringo's questions. */
+/** The answers a sales caller gave to Ringvo's questions. */
 function OfferBox({ offer }: { offer: Offer }) {
   const rows: [IconName, string, string | null][] = [["sparkles", "What you get", offer.value], ["card", "Cost", offer.price], ["cal", "Deal ends", offer.deadline]];
   return (
@@ -58,7 +58,7 @@ export default function InCalls() {
   const toast = useToast();
   const callBack = useMutation({
     mutationFn: (inCallId: string) => api.callBack(inCallId),
-    onSuccess: (call) => { toast("phone", `Ringo is calling ${call.name} back`); qc.invalidateQueries({ queryKey: ["calls"] }); router.push(`/call/${call.id}`); },
+    onSuccess: (call) => { toast("phone", `Ringvo is calling ${call.name} back`); qc.invalidateQueries({ queryKey: ["calls"] }); router.push(`/call/${call.id}`); },
     onError: (e) => toast("alert", e instanceof Error ? e.message : "Couldn't start the call"),
   });
   const all = calls.data ?? [];
@@ -78,22 +78,22 @@ export default function InCalls() {
 
       <Acc icon="forward" title="Call forwarding" style={on ? { borderColor: "rgba(52,211,153,.4)" } : undefined}
         right={me.data ? <Pill text={on ? "On" : "Off"} icon={on ? "check" : "x"} color={on ? c.ok : c.muted} bg={on ? c.okSoft : "#232a3f"} /> : undefined}
-        sub={on ? "Ringo answers calls you miss" : "Let Ringo answer calls you miss"} {...section("forwarding")}>
+        sub={on ? "Ringvo answers calls you miss" : "Let Ringvo answer calls you miss"} {...section("forwarding")}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, marginVertical: 12 }} accessible
-          accessibilityLabel="Missed calls to your phone go to Ringo">
+          accessibilityLabel="Missed calls to your phone go to Ringvo">
           <View style={{ alignItems: "center", gap: 4 }}><Initials name={me.data?.name ?? "You"} size={44} /><Text style={s.meta}>You</Text></View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
             <View style={{ width: 36, height: 2, backgroundColor: on ? c.ok : c.border }} /><Icon name="right" size={16} color={on ? c.ok : c.muted} />
           </View>
           <View style={{ alignItems: "center", gap: 4 }}>
             <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primarySoft, alignItems: "center", justifyContent: "center" }}><Icon name="headphones" color={c.primaryText} /></View>
-            <Text style={s.meta}>Ringo</Text>
+            <Text style={s.meta}>Ringvo</Text>
           </View>
         </View>
         <Text style={[s.muted, { textAlign: "center", fontSize: 13 }]}>
           {me.data?.ringoNumber
-            ? `Calls you don't pick up go to your Ringo line ${fmtPhone(me.data.ringoNumber)}. Ringo screens them, blocks spam and takes a message.`
-            : "You'll get a Ringo line once your account is set up."}
+            ? `Calls you don't pick up go to your Ringvo line ${fmtPhone(me.data.ringoNumber)}. Ringvo screens them, blocks spam and takes a message.`
+            : "You'll get a Ringvo line once your account is set up."}
         </Text>
         <HowRingoAnswers />
         {me.data?.ringoNumber ? <Button title={on ? "Forwarding settings" : "Set up forwarding"} icon="forward" kind={on ? "secondary" : "primary"} onPress={() => router.push("/forwarding")} /> : null}
@@ -128,14 +128,14 @@ export default function InCalls() {
                 ) : null}
                 {r.type !== "spam" ? (
                   <Pressable onPress={() => callBack.mutate(r.id)} disabled={callBack.isPending} accessibilityRole="button"
-                    accessibilityLabel={`Have Ringo call ${r.callerName ?? fmtPhone(r.callbackNumber ?? r.fromNumber)} back`}>
-                    <Chip icon={callBack.isPending && callBack.variables === r.id ? "loader" : "headphones"} text="Ringo calls back" tone="act" />
+                    accessibilityLabel={`Have Ringvo call ${r.callerName ?? fmtPhone(r.callbackNumber ?? r.fromNumber)} back`}>
+                    <Chip icon={callBack.isPending && callBack.variables === r.id ? "loader" : "headphones"} text="Ringvo calls back" tone="act" />
                   </Pressable>
                 ) : null}
               </View>
             </View>
           );
-        }) : <Empty icon="in" text={filter === "all" ? "No calls yet. Turn on forwarding so Ringo can answer." : "Nothing here."} />}
+        }) : <Empty icon="in" text={filter === "all" ? "No calls yet. Turn on forwarding so Ringvo can answer." : "Nothing here."} />}
       </Acc>
     </ScrollView>
   );

@@ -21,7 +21,7 @@ export type Profile = z.infer<typeof ProfileSchema>;
 
 export const PreferencesSchema = z.object({
   infoMode: z.enum(INFO_MODES).optional(),
-  /** Let Ringo look at free/busy on the connected Google Calendar before agreeing a time. */
+  /** Let Ringvo look at free/busy on the connected Google Calendar before agreeing a time. */
   calendarCheck: z.boolean().optional(),
   /** Save confirmed bookings and appointments to the connected Google Calendar. */
   calendarSave: z.boolean().optional(),
@@ -47,7 +47,7 @@ export const OutCallInputSchema = z
     goal: z.string().trim().min(3).max(1000),
     limits: z.string().trim().max(1000).default(""),
     askMe: z.enum(ASK_ME).default("ask"),
-    /** "Hold for me": Ringo waits through menus and hold, then connects the user once a person answers. */
+    /** "Hold for me": Ringvo waits through menus and hold, then connects the user once a person answers. */
     holdForMe: z.boolean().default(false),
     /** Omit to call as soon as possible. */
     scheduledAt: z.iso.datetime({ offset: true }).optional(),
@@ -88,7 +88,7 @@ export const OutCallSchema = z.object({
   /** When the rep said to call back, if they did. */
   followUpAt: z.string().nullable(),
   followUpNote: z.string().nullable(),
-  /** Confirmed booking/appointment time, and whether Ringo put it on the user's calendar. */
+  /** Confirmed booking/appointment time, and whether Ringvo put it on the user's calendar. */
   appointmentAt: z.string().nullable(),
   onCalendar: z.boolean(),
 });
@@ -106,7 +106,7 @@ export const InCallSchema = z.object({
   callbackNumber: z.string().nullable(),
   startedAt: z.string(),
   durationSec: z.number().nullable(),
-  /** For sales calls: what the caller is offering, what it costs and any deadline, as Ringo heard it. */
+  /** For sales calls: what the caller is offering, what it costs and any deadline, as Ringvo heard it. */
   offer: OfferSchema.nullable(),
 });
 export type InCall = z.infer<typeof InCallSchema>;

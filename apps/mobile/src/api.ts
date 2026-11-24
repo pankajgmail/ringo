@@ -49,7 +49,7 @@ export function useApi() {
     try {
       res = await fetch(`${config.apiUrl}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
     } catch {
-      throw new ApiError(0, "Can't reach Ringo. Check your connection.");
+      throw new ApiError(0, "Can't reach Ringvo. Check your connection.");
     }
     if (res.status === 401) {
       await signOut();
