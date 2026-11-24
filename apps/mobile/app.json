@@ -10,7 +10,6 @@
     "backgroundColor": "#0b0f1a",
     "ios": {
       "bundleIdentifier": "app.ringo.mobile",
-      "buildNumber": "1",
       "supportsTablet": false,
       "config": {
         "usesNonExemptEncryption": false
@@ -166,7 +165,6 @@
         "android.permission.CAMERA"
       ],
       "allowBackup": false,
-      "versionCode": 1,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
