@@ -222,12 +222,16 @@
       "cognitoDomain": "https://ringo-dev-334076860223.auth.us-east-2.amazoncognito.com",
       "cognitoClientId": "40nfe04h21u1nu9nj2q67omgf9",
       "appleSignIn": "false",
-      "devUser": ""
+      "devUser": "",
+      "eas": {
+        "projectId": "1640a2c5-396a-43e2-9bce-611f2c09f4dc"
+      }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "description": "Ringo is an AI phone assistant. It calls businesses for you, waits on hold, asks you when it needs a decision, and answers calls you miss.",
-    "primaryColor": "#7c6cf6"
+    "primaryColor": "#7c6cf6",
+    "owner": "ringos-team"
   }
 }
