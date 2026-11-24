@@ -91,7 +91,8 @@ npx eas-cli build -p android --profile production     # .aab; EAS creates and ke
    - In Firebase console, add a project and an Android app with package `app.ringo.mobile`.
    - Go to **Project settings → Service accounts → Generate new private key**.
    - Run `npx eas-cli credentials -p android`, then choose production → Google Service Account → *Push Notifications (FCM V1)*, and upload the JSON.
-   - Build again after this; no `google-services.json` is needed for Expo push.
+   - In the same Firebase app, download **`google-services.json`** and save it as `apps/mobile/google-services.json`. Then set `android.googleServicesFile` to `./google-services.json` in `app.json`. Android can't get a push token without it. The file only identifies the Firebase app (it isn't a secret), so it's committed.
+   - Build again after this.
 2. In Play Console, **Create app**: name Ringo, App, Free, then accept the declarations.
 3. **Upload key for `eas submit`**:
    - In Google Cloud, create a service account in the project linked to Play and add a JSON key.
