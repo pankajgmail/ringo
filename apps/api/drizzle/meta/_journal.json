@@ -22,6 +22,13 @@
       "when": 1795461787956,
       "tag": "0002_user_zip",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795499479497,
+      "tag": "0003_info_mode",
+      "breakpoints": true
     }
   ]
 }

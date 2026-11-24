@@ -6,5 +6,5 @@ export type LiveEvent =
   | { type: "call.updated"; call: OutCall }
   | { type: "call.stage"; callId: string; stage: Stage; line: string }
   | { type: "call.transcript"; callId: string; line: TranscriptLine }
-  | { type: "call.ask"; callId: string; askId: string; kind: "decision" | "code"; question: string; options: Answer["choice"][]; expiresAt: string }
+  | { type: "call.ask"; callId: string; askId: string; kind: "decision" | "code" | "info"; question: string; options: Answer["choice"][]; expiresAt: string }
   | { type: "call.ask_resolved"; callId: string; askId: string };

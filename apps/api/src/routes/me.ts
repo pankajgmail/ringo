@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
 import twilio from "twilio";
-import { ForwardingSchema, PhoneVerifyCheckSchema, PhoneVerifyStartSchema, ProfileSchema, PushTokenSchema, forwardingCodes } from "@ringo/shared";
+import { ForwardingSchema, PreferencesSchema, PhoneVerifyCheckSchema, PhoneVerifyStartSchema, ProfileSchema, PushTokenSchema, forwardingCodes } from "@ringo/shared";
 import { db, schema } from "../db/client.ts";
 import { env } from "../env.ts";
 import { audit } from "../lib/audit.ts";
@@ -17,7 +17,7 @@ export async function meRoutes(app: FastifyInstance) {
     return {
       id: u.id, name: u.name, email: u.email, phone: u.phone, phoneVerified: !!u.phoneVerifiedAt, address: u.address, zip: u.zip, isAdmin: isAdmin(u),
       carrier: u.carrier, timezone: u.timezone, ringoNumber: u.ringoNumber, forwardingActive: u.forwardingActive,
-      monthlyBudgetCents: u.monthlyBudgetCents, numbersAvailable: numbersConfigured(),
+      monthlyBudgetCents: u.monthlyBudgetCents, numbersAvailable: numbersConfigured(), infoMode: u.infoMode,
       forwarding: u.ringoNumber ? forwardingCodes(u.carrier, u.ringoNumber) : null,
     };
   });
@@ -28,6 +28,14 @@ export async function meRoutes(app: FastifyInstance) {
     const phoneChanged = p.phone !== req.user.phone;
     await db.update(schema.users).set({ ...p, ...(phoneChanged ? { phoneVerifiedAt: null } : {}) }).where(eq(schema.users.id, req.user.id));
     return { ok: true, phoneVerified: phoneChanged ? false : !!req.user.phoneVerifiedAt };
+  });
+
+  /** How Ringo gets details it doesn't have mid-call: ask in the app, or conference the user in. */
+  app.put("/v1/me/preferences", async (req) => {
+    const p = PreferencesSchema.parse(req.body);
+    await db.update(schema.users).set(p).where(eq(schema.users.id, req.user.id));
+    await audit(req.user.id, "me.preferences", p);
+    return { ok: true, ...p };
   });
 
   app.post("/v1/me/phone/verify", { config: { rateLimit: { max: 5, timeWindow: "1 hour" } } }, async (req, reply) => {

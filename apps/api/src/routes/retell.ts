@@ -1,10 +1,10 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, eq, isNull } from "drizzle-orm";
-import { IN_CALL_TYPES, OUTCOMES, STAGES, type InCallType, type Outcome, type Stage, type TranscriptLine } from "@ringo/shared";
+import { and, desc, eq, isNull } from "drizzle-orm";
+import { INFO_WAIT_MS, IN_CALL_TYPES, OUTCOMES, STAGES, type InCallType, type Outcome, type Stage, type TranscriptLine } from "@ringo/shared";
 import { db, schema } from "../db/client.ts";
 import { audit } from "../lib/audit.ts";
 import { finish, maybeRedial } from "../jobs/dialer.ts";
-import { verifyRetell } from "../services/retell.ts";
+import { retell, verifyRetell } from "../services/retell.ts";
 import { isOnline, publish, push } from "../services/live.ts";
 import { toOutCall } from "../services/serialize.ts";
 
@@ -31,6 +31,8 @@ type RetellCall = {
 
 // Retell reaches the API over HTTPS through CloudFront, which ends requests after 60s, so answer before that.
 const ASK_TIMEOUT_MS = 50_000; // tool timeout in the agent config is 58s
+/** After the 2-minute info wait runs out, how long the agent gets to wrap up before Ringo hangs up itself. */
+const END_GRACE_MS = 20_000;
 
 async function verified(req: FastifyRequest) {
   return verifyRetell((req as FastifyRequest & { rawBody: string }).rawBody, req.headers["x-retell-signature"] as string | undefined);
@@ -99,7 +101,7 @@ export async function retellRoutes(app: FastifyInstance) {
       await finish(row.id, row.userId, {
         status: outcome === "failed" ? "failed" : "completed",
         outcome,
-        summary: String(data.result_summary ?? call.call_analysis?.call_summary ?? "Call ended."),
+        summary: String(data.result_summary || call.call_analysis?.call_summary || "Call ended."),
         reference: data.reference_number ? String(data.reference_number) : null,
         costCents: call.call_cost?.combined_cost != null ? Math.round(call.call_cost.combined_cost) : row.costCents,
       });
@@ -141,14 +143,16 @@ export async function retellRoutes(app: FastifyInstance) {
   });
 
   /**
-   * Ask the user something mid-call (an offer to approve, or an OTP the provider texted them).
-   * Pushes to the app and long-polls for the answer. The agent keeps the rep engaged meanwhile.
+   * Ask the user something mid-call: an offer to approve, a one-time code they were texted, or information Ringo
+   * doesn't keep (account number, PIN, party size). Pushes to the app and long-polls for the answer.
+   * Each request must finish inside CloudFront's 60s, so a 2-minute wait is split: if there's no answer after ~50s
+   * the agent is told to keep the rep engaged and call wait_for_answer.
    */
   app.post("/retell/tools/ask_user", async (req) => {
-    const { call, args } = req.body as { call: RetellCall; args: { question: string; kind?: "decision" | "code" } };
+    const { call, args } = req.body as { call: RetellCall; args: { question: string; kind?: string } };
     const row = await outCallFor(call);
     if (!row) return { answered: false, instruction: "Tell the rep you'll call back, then end the call." };
-    const kind = args.kind === "code" ? "code" : "decision";
+    const kind = args.kind === "code" || args.kind === "info" ? args.kind : "decision";
 
     if (kind === "decision" && row.askMe !== "ask") {
       return row.askMe === "decline"
@@ -156,34 +160,101 @@ export async function retellRoutes(app: FastifyInstance) {
         : { answered: true, choice: "end", instruction: "Thank the rep, note the offer, and end the call." };
     }
 
-    const expiresAt = new Date(Date.now() + ASK_TIMEOUT_MS);
+    // Information only the user has: if they chose "conference me in", connect them instead of asking in the app.
+    // Texted one-time codes are always asked in the app; they're quicker to type than to read out.
+    if (kind === "info") {
+      const [user] = await db.select({ infoMode: schema.users.infoMode, phone: schema.users.phone }).from(schema.users).where(eq(schema.users.id, row.userId));
+      if (user?.infoMode === "conference" && user.phone) {
+        await db.insert(schema.asks).values({ outCallId: row.id, kind, question: args.question, via: "conference", expiresAt: new Date(Date.now() + INFO_WAIT_MS) });
+        publish(row.userId, { type: "call.stage", callId: row.id, stage: "talk", line: `Calling you to join: ${args.question}` });
+        await push(row.userId, `${row.name}: Ringo is calling you`, `Pick up to join the call. The rep needs: ${args.question}`, { outCallId: row.id });
+        return { answered: false, conference: true, instruction: CONFERENCE_INSTRUCTION };
+      }
+    }
+
+    const expiresAt = new Date(Date.now() + (kind === "decision" ? ASK_TIMEOUT_MS : INFO_WAIT_MS));
     const [ask] = await db.insert(schema.asks).values({ outCallId: row.id, kind, question: args.question, expiresAt }).returning();
     const [u] = await db.update(schema.outCalls).set({ status: "awaiting_user" }).where(eq(schema.outCalls.id, row.id)).returning();
     if (u) publish(row.userId, { type: "call.updated", call: toOutCall(u) });
     publish(row.userId, {
       type: "call.ask", callId: row.id, askId: ask!.id, kind, question: args.question,
-      options: kind === "code" ? ["reply"] : ["accept", "counter", "takeover", "end"], expiresAt: expiresAt.toISOString(),
+      options: kind === "decision" ? ["accept", "counter", "takeover", "end"] : ["reply", "takeover"], expiresAt: expiresAt.toISOString(),
     });
-    if (!isOnline(row.userId) || kind === "code") {
-      await push(row.userId, kind === "code" ? `${row.name} needs a code` : `${row.name}: decision needed`, args.question, { outCallId: row.id, askId: ask!.id });
-    }
+    const title = kind === "code" ? `${row.name} needs a code` : kind === "info" ? `${row.name} needs information` : `${row.name}: decision needed`;
+    if (!isOnline(row.userId) || kind !== "decision") await push(row.userId, title, args.question, { outCallId: row.id, askId: ask!.id });
+    if (kind !== "decision") endIfUnanswered(ask!.id, row.id, expiresAt);
 
-    const answered = await waitForAnswer(ask!.id, expiresAt);
-    await db.update(schema.outCalls).set({ status: "in_progress" }).where(and(eq(schema.outCalls.id, row.id), eq(schema.outCalls.status, "awaiting_user")));
-    if (!answered) {
-      await db.update(schema.asks).set({ answeredAt: new Date(), answer: "timeout" }).where(and(eq(schema.asks.id, ask!.id), isNull(schema.asks.answeredAt)));
-      publish(row.userId, { type: "call.ask_resolved", callId: row.id, askId: ask!.id });
-      return { answered: false, instruction: "The account holder didn't respond. Don't accept anything. Ask for a reference number and say they'll call back." };
-    }
-    const instructions: Record<string, string> = {
-      accept: "The account holder accepts. Confirm the details and ask for a reference number.",
-      counter: "The account holder declines. Ask politely for a better outcome, or for a supervisor.",
-      takeover: "The account holder will join the call. Tell the rep to please hold for a moment.",
-      end: "Thank the rep and end the call.",
-      reply: `The account holder replied: "${answered.note ?? ""}". Use it to answer the rep.`,
-    };
-    return { answered: true, choice: answered.answer, note: answered.note ?? "", instruction: instructions[answered.answer ?? "end"] };
+    return respond(ask!.id, row, kind, expiresAt);
   });
+
+  /** Follow-up long poll for an ask that wasn't answered within one request. Never waits past the ask's 2-minute limit. */
+  app.post("/retell/tools/wait_for_answer", async (req) => {
+    const { call, args } = req.body as { call: RetellCall; args: { ask_id?: string } };
+    const row = await outCallFor(call);
+    if (!row) return { answered: false, instruction: "Tell the rep you'll call back, then end the call." };
+    const [ask] = args.ask_id
+      ? await db.select().from(schema.asks).where(and(eq(schema.asks.id, args.ask_id), eq(schema.asks.outCallId, row.id)))
+      : await db.select().from(schema.asks).where(eq(schema.asks.outCallId, row.id)).orderBy(desc(schema.asks.createdAt)).limit(1);
+    if (!ask) return { answered: false, instruction: TIMEOUT_INSTRUCTION };
+    return respond(ask.id, row, ask.kind, ask.expiresAt);
+  });
+}
+
+const CONFERENCE_INSTRUCTION = 'The account holder asked to be connected for this. Tell the rep: "I\'ll bring the account holder on the line now, please hold for a moment," then call conference_user. If the transfer fails because they don\'t pick up, apologize, say they\'ll call back, ask for a reference number, and end the call.';
+const TIMEOUT_INSTRUCTION = "The account holder didn't answer within 2 minutes. Don't agree to anything. Apologize to the rep, say the account holder will call back, ask for a reference number, and end the call.";
+
+type Row = NonNullable<Awaited<ReturnType<typeof outCallFor>>>;
+
+/** Waits (at most one request's worth) for the answer and tells the agent what to do next. */
+async function respond(askId: string, row: Row, kind: "decision" | "code" | "info", expiresAt: Date) {
+  const until = new Date(Math.min(expiresAt.getTime(), Date.now() + ASK_TIMEOUT_MS));
+  const answered = await waitForAnswer(askId, until);
+  if (!answered && Date.now() < expiresAt.getTime() - 2000) {
+    const left = Math.round((expiresAt.getTime() - Date.now()) / 1000);
+    return {
+      answered: false, still_waiting: true, ask_id: askId, seconds_left: left,
+      instruction: `Still waiting for the account holder (${left}s left). Tell the rep briefly that they're checking ("Thanks for your patience, they're just getting that for me"), then call wait_for_answer with ask_id "${askId}".`,
+    };
+  }
+  await db.update(schema.outCalls).set({ status: "in_progress" }).where(and(eq(schema.outCalls.id, row.id), eq(schema.outCalls.status, "awaiting_user")));
+  if (!answered) {
+    await db.update(schema.asks).set({ answeredAt: new Date(), answer: "timeout" }).where(and(eq(schema.asks.id, askId), isNull(schema.asks.answeredAt)));
+    publish(row.userId, { type: "call.ask_resolved", callId: row.id, askId });
+    return {
+      answered: false,
+      instruction: kind === "decision" ? "The account holder didn't respond. Don't accept anything. Ask for a reference number and say they'll call back." : TIMEOUT_INSTRUCTION,
+    };
+  }
+  // Codes and account details go to the agent once; Ringo doesn't keep them.
+  if (answered.answer === "reply" && kind !== "decision") await db.update(schema.asks).set({ note: null }).where(eq(schema.asks.id, askId));
+  const instructions: Record<string, string> = {
+    accept: "The account holder accepts. Confirm the details and ask for a reference number.",
+    counter: "The account holder declines. Ask politely for a better outcome, or for a supervisor.",
+    takeover: `The account holder wants to join the call. ${CONFERENCE_INSTRUCTION}`,
+    end: "Thank the rep and end the call.",
+    reply: `The account holder replied: "${answered.note ?? ""}". Use it to answer the rep. Don't repeat it more than needed.`,
+  };
+  return { answered: true, choice: answered.answer, note: answered.note ?? "", instruction: instructions[answered.answer ?? "end"] };
+}
+
+/**
+ * Backstop for the 2-minute limit: if the user never answered, end the call even if the agent didn't.
+ * A short grace period lets the agent say goodbye and ask for a reference number first.
+ */
+function endIfUnanswered(askId: string, outCallId: string, expiresAt: Date) {
+  const t = setTimeout(async () => {
+    try {
+      const [a] = await db.select().from(schema.asks).where(eq(schema.asks.id, askId));
+      if (a?.answeredAt && a.answer !== "timeout") return;
+      const [c] = await db.select().from(schema.outCalls).where(eq(schema.outCalls.id, outCallId));
+      if (!c?.retellCallId || !["in_progress", "awaiting_user"].includes(c.status)) return;
+      await retell.call.stop(c.retellCallId).catch(() => undefined);
+      await audit(c.userId, "call.ask_timeout", { outCallId, askId });
+    } catch {
+      // Best effort; the agent was told to end the call too.
+    }
+  }, expiresAt.getTime() - Date.now() + END_GRACE_MS);
+  t.unref?.();
 }
 
 async function waitForAnswer(askId: string, until: Date) {
@@ -208,7 +279,7 @@ async function handleInbound(event: string, call: RetellCall) {
     fromNumber: call.from_number ?? "",
     callerName: data.caller_name ? String(data.caller_name) : null,
     type,
-    summary: String(data.message ?? call.call_analysis?.call_summary ?? ""),
+    summary: String(data.message || call.call_analysis?.call_summary || ""),
     callbackNumber: data.callback_number ? String(data.callback_number) : null,
     transcript: toLines(call.transcript_object),
     startedAt: call.start_timestamp ? new Date(call.start_timestamp) : new Date(),

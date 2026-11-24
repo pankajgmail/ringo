@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { Answer, InCall, OutCall, OutCallInput, Profile, TranscriptLine, forwardingCodes } from "@ringo/shared";
+import type { Answer, InCall, InfoMode, OutCall, OutCallInput, Profile, TranscriptLine, forwardingCodes } from "@ringo/shared";
 import { config, devAuth } from "./config.ts";
 import { useAuth } from "./auth.tsx";
 
@@ -10,7 +10,7 @@ export class ApiError extends Error {
 }
 
 export type Me = Profile & {
-  id: string; isAdmin: boolean; numbersAvailable: boolean; phoneVerified: boolean; ringoNumber: string | null; forwardingActive: boolean; monthlyBudgetCents: number;
+  id: string; isAdmin: boolean; numbersAvailable: boolean; phoneVerified: boolean; ringoNumber: string | null; forwardingActive: boolean; monthlyBudgetCents: number; infoMode: InfoMode;
   forwarding: ReturnType<typeof forwardingCodes> | null;
 };
 
@@ -57,6 +57,7 @@ export function useApi() {
     saveProfile: (p: Profile) => req<{ ok: true; phoneVerified: boolean }>("PUT", "/v1/me", p),
     startPhoneVerify: (phone: string) => req("POST", "/v1/me/phone/verify", { phone }),
     checkPhoneVerify: (phone: string, code: string) => req("POST", "/v1/me/phone/check", { phone, code }),
+    setInfoMode: (infoMode: InfoMode) => req<{ ok: true; infoMode: InfoMode }>("PUT", "/v1/me/preferences", { infoMode }),
     getNumber: () => req<{ ringoNumber: string }>("POST", "/v1/me/number"),
     setForwarding: (active: boolean) => req("PUT", "/v1/me/forwarding", { active }),
     deleteMe: () => req("DELETE", "/v1/me"),

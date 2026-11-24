@@ -34,6 +34,8 @@ export const users = pgTable("users", {
   /** Dedicated per-user number (decision D3). Identifies the user on forwarded inbound calls. */
   ringoNumber: text("ringo_number").unique(),
   twilioNumberSid: text("twilio_number_sid"),
+  /** "prompt" = ask in the app; "conference" = call the user's phone and connect them to the rep. */
+  infoMode: text("info_mode").$type<"prompt" | "conference">().notNull().default("prompt"),
   forwardingActive: boolean("forwarding_active").notNull().default(false),
   monthlyBudgetCents: integer("monthly_budget_cents").notNull().default(2000),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -77,13 +79,18 @@ export const outCalls = pgTable("out_calls", {
 export const asks = pgTable("asks", {
   id: uuid("id").primaryKey().defaultRandom(),
   outCallId: uuid("out_call_id").notNull().references(() => outCalls.id, { onDelete: "cascade" }),
-  /** "decision" = accept/counter/takeover/end; "code" = free text such as an OTP the provider texted the user. */
-  kind: text("kind").$type<"decision" | "code">().notNull().default("decision"),
+  /**
+   * "decision" = accept/counter/takeover/end; "code" = free text such as an OTP the provider texted the user;
+   * "info" = something the rep asked for that Ringo doesn't have (account number, PIN, party size).
+   */
+  kind: text("kind").$type<"decision" | "code" | "info">().notNull().default("decision"),
   question: text("question").notNull(),
   answer: text("answer"),
   note: text("note"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   answeredAt: timestamp("answered_at", { withTimezone: true }),
+  /** How this ask reached the user: in the app, or by conferencing them in. */
+  via: text("via").$type<"prompt" | "conference">().notNull().default("prompt"),
   ...timestamps,
 });
 

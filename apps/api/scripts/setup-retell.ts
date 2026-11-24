@@ -30,23 +30,43 @@ const reportStatus = tool("report_status", "Report call progress so the user can
   stage: { type: "string", enum: ["menu", "hold", "talk"] },
   note: { type: "string", description: "Short note, e.g. 'Pressed 2 for billing'" },
 }, ["stage"]);
-const askUser = tool("ask_user", "Ask the account holder a question in real time and wait up to 50 seconds for their answer.", {
-  question: { type: "string", description: "One short sentence the user will see on their phone." },
-  kind: { type: "string", enum: ["decision", "code"], description: "'code' when you need a one-time code they received by text." },
+const askUser = tool("ask_user", "Ask the account holder something in real time: approve an offer, read you a texted code, or give information you don't have (account number, PIN, party size). Waits up to 50 seconds; if they need longer the result says to call wait_for_answer.", {
+  question: { type: "string", description: "One short sentence the user will see on their phone, e.g. 'What is your Verizon account PIN?'" },
+  kind: { type: "string", enum: ["decision", "code", "info"], description: "'decision' for an offer; 'code' for a one-time code they received by text; 'info' for any other detail you don't have." },
 }, ["question"], 58_000);
+const waitForAnswer = tool("wait_for_answer", "Keep waiting for the account holder's answer to the last ask_user question. Only call this when a tool result tells you to.", {
+  ask_id: { type: "string", description: "The ask_id from the previous result." },
+}, [], 58_000);
+
+// Warm transfer to the account holder's own phone. Ringo stays with the rep while it rings (up to 2 minutes),
+// briefs the account holder privately, then connects them. If they don't pick up the agent gets the call back.
+const conferenceUser = {
+  type: "transfer_call" as const,
+  name: "conference_user",
+  description: "Connect the account holder to this call so they can give the rep information themselves. Only call this when a tool result tells you to.",
+  transfer_destination: { type: "predefined" as const, number: "{{user_phone}}" },
+  transfer_option: {
+    type: "warm_transfer" as const,
+    transfer_ring_duration_ms: 120_000,
+    on_hold_music: "none" as const,
+    private_handoff_option: { type: "prompt" as const, prompt: "Tell {{user_name}} in one or two sentences who you are on the line with ({{provider_name}}) and exactly what the rep needs from them, then say you're connecting them now." },
+  },
+  speak_during_execution: true,
+  execution_message_description: "Tell the rep you're bringing the account holder on the line and to please hold.",
+};
 
 const endCall = { type: "end_call" as const, name: "end_call", description: "End the call when the goal is done or cannot be done." };
 const pressDigit = { type: "press_digit" as const, name: "press_digit", description: "Press keypad digits to navigate phone menus." };
 
 const outcomeFields = [
   { type: "enum" as const, name: "outcome", description: "success = goal fully met; partial = some of it; failed = nothing achieved.", choices: ["success", "partial", "failed"] },
-  { type: "string" as const, name: "result_summary", description: "One or two plain sentences for the user: what was agreed, amounts, dates." },
+  { type: "string" as const, name: "result_summary", description: "Two or three plain sentences for the user: what was asked, what the rep said, what was agreed (amounts, dates), any information the account holder supplied or whether they joined the call, and what happens next. Never include account numbers, PINs or codes." },
   { type: "string" as const, name: "reference_number", description: "Reference, ticket or confirmation number, or empty." },
 ];
 const inboundFields = [
   { type: "enum" as const, name: "caller_type", description: "important = time-sensitive or from a doctor, school, bank, courier, employer; message = normal; spam = sales/robocall.", choices: ["important", "message", "spam"] },
   { type: "string" as const, name: "caller_name", description: "Caller's name and organization." },
-  { type: "string" as const, name: "message", description: "The message in one or two sentences, including best callback time." },
+  { type: "string" as const, name: "message", description: "Summary of the conversation in two or three sentences: who called, why, any details they gave, and the best callback time." },
   { type: "string" as const, name: "callback_number", description: "Callback number in E.164 if given, else empty." },
 ];
 
@@ -77,8 +97,8 @@ async function upsert(name: string, prompt: string, tools: unknown[], analysis: 
   return agent.agent_id;
 }
 
-const outbound = await upsert("ringo-outbound", OUTBOUND_PROMPT, [reportStatus, askUser, pressDigit, endCall], outcomeFields);
-const booking = await upsert("ringo-booking", BOOKING_PROMPT, [askUser, pressDigit, endCall], outcomeFields);
+const outbound = await upsert("ringo-outbound", OUTBOUND_PROMPT, [reportStatus, askUser, waitForAnswer, conferenceUser, pressDigit, endCall], outcomeFields);
+const booking = await upsert("ringo-booking", BOOKING_PROMPT, [askUser, waitForAnswer, conferenceUser, pressDigit, endCall], outcomeFields);
 const inbound = await upsert("ringo-inbound", INBOUND_PROMPT, [endCall], inboundFields, { end_call_after_silence_ms: 20_000 });
 
 console.log(`RETELL_OUTBOUND_AGENT_ID=${outbound}\nRETELL_BOOKING_AGENT_ID=${booking}\nRETELL_INBOUND_AGENT_ID=${inbound}`);

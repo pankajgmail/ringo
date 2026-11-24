@@ -11,6 +11,13 @@ export type Priority = (typeof PRIORITIES)[number];
 export const ASK_ME = ["ask", "decline", "end"] as const;
 export type AskMe = (typeof ASK_ME)[number];
 
+/** How Ringo gets information it doesn't have (account number, PIN, party size…) during a call. */
+export const INFO_MODES = ["prompt", "conference"] as const;
+export type InfoMode = (typeof INFO_MODES)[number];
+
+/** Longest Ringo keeps a rep waiting for the user's answer (or for them to pick up) before ending the call. */
+export const INFO_WAIT_MS = 120_000;
+
 export const OUT_CALL_STATUSES = ["scheduled", "queued", "dialing", "in_progress", "awaiting_user", "completed", "cancelled", "failed"] as const;
 export type OutCallStatus = (typeof OUT_CALL_STATUSES)[number];
 

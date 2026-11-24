@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ASK_ME, CARRIERS, CATEGORIES, IN_CALL_TYPES, OUTCOMES, OUT_CALL_STATUSES, PRIORITIES, STAGES } from "./domain.ts";
+import { ASK_ME, CARRIERS, INFO_MODES, CATEGORIES, IN_CALL_TYPES, OUTCOMES, OUT_CALL_STATUSES, PRIORITIES, STAGES } from "./domain.ts";
 
 // Request/response contracts. The API validates with these; the app reuses them for forms and typing.
 
@@ -18,6 +18,9 @@ export const ProfileSchema = z.object({
   timezone: z.string().default("America/Los_Angeles"),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
+
+export const PreferencesSchema = z.object({ infoMode: z.enum(INFO_MODES) });
+export type Preferences = z.infer<typeof PreferencesSchema>;
 
 export const ForwardingSchema = z.object({ active: z.boolean() });
 

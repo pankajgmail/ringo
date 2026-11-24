@@ -5,7 +5,8 @@ import * as Clipboard from "expo-clipboard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/api.ts";
 import { useAuth } from "@/auth.tsx";
-import { Acc, Button, ErrorBox, Field, Icon, IconBtn, Initials, Loading, Meta, MetaText, PageHeader, Pill, s, useAccordion, useToast } from "@/ui.tsx";
+import { Acc, Button, ErrorBox, Field, Icon, IconBtn, Initials, Loading, Meta, MetaText, PageHeader, Pill, Seg, s, useAccordion, useToast } from "@/ui.tsx";
+import type { InfoMode } from "@ringo/shared";
 import { fmtPhone, toE164 } from "@/format.ts";
 import { c } from "@/theme.ts";
 
@@ -19,7 +20,7 @@ export default function Settings() {
   const toast = useToast();
   const { signOut } = useAuth();
   const qc = useQueryClient();
-  const section = useAccordion<"profile" | "line" | "account">();
+  const section = useAccordion<"profile" | "calls" | "line" | "account">();
   const me = useQuery({ queryKey: ["me"], queryFn: api.me });
 
   const [name, setName] = useState("");
@@ -44,6 +45,13 @@ export default function Settings() {
   const checkCode = useMutation({
     mutationFn: () => api.checkPhoneVerify(toE164(phone), code),
     onSuccess: () => { setCodeSent(false); setCode(""); toast("check-circle", "Phone verified"); qc.invalidateQueries({ queryKey: ["me"] }); },
+  });
+
+  const infoMode = useMutation({
+    mutationFn: (m: InfoMode) => api.setInfoMode(m),
+    onMutate: (m) => qc.setQueryData(["me"], (old: typeof me.data) => (old ? { ...old, infoMode: m } : old)),
+    onSuccess: (r) => toast("check", r.infoMode === "conference" ? "Ringo will call you in" : "Ringo will ask in the app"),
+    onError: () => qc.invalidateQueries({ queryKey: ["me"] }),
   });
 
   const delMe = useMutation({ mutationFn: api.deleteMe, onSuccess: () => signOut() });
@@ -90,6 +98,21 @@ export default function Settings() {
                 {sendCode.error ? <ErrorBox error={sendCode.error} /> : null}
               </View>
             ) : null}
+          </Acc>
+
+          <Acc icon="headphones" title="When Ringo needs something" sub={d?.infoMode === "conference" ? "Call me and connect me to the rep" : "Ask me in the app"} {...section("calls")}>
+            <Text style={[s.muted, { marginBottom: 10 }]}>
+              Ringo only knows your name, phone and address. If the business asks for something else, like an account number, PIN or how many people, how should Ringo get it from you?
+            </Text>
+            <Seg<InfoMode> label="How Ringo gets missing details" value={d?.infoMode ?? "prompt"} onChange={(m) => infoMode.mutate(m)}
+              options={[{ value: "prompt", label: "Ask in the app", icon: "msg" }, { value: "conference", label: "Conference me in", icon: "phone" }]} />
+            <Text style={[s.meta, { marginTop: 10 }]}>
+              {d?.infoMode === "conference"
+                ? `Ringo calls ${d?.phone ? fmtPhone(d.phone) : "your phone"}, tells you what the rep needs, and connects you. Codes texted to you are still asked in the app.`
+                : "You get a notification with the question and type the answer. Ringo passes it on and doesn't keep it."}
+              {" "}If you don't answer within 2 minutes, Ringo politely ends the call and you can try again later.
+            </Text>
+            {infoMode.error ? <ErrorBox error={infoMode.error} /> : null}
           </Acc>
 
           <Acc icon="signal" title="Your Ringo line" sub={d?.ringoNumber ? fmtPhone(d.ringoNumber) : "No number yet"}
