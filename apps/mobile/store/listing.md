@@ -9,6 +9,7 @@ Copy and paste these into App Store Connect and Google Play Console. `check.py` 
 - Support email: support@ringo.app (make sure this inbox exists, or put your own)
 - Category: Productivity (secondary on iOS: Business)
 - Price: Free (5 free calls, then a $9.99/month subscription)
+- Availability: United States only (Ringvo phone numbers are US numbers, and the US storefront allows linking out to web payment)
 
 ## App Store (iOS)
 
@@ -57,7 +58,7 @@ Questions or feedback? Tap the star in the app or email support@ringo.app.
 Meet Ringvo. Your AI assistant now answers missed calls, screens sales calls and blocks spam, can text you by SMS or WhatsApp, and adds booked appointments to Google Calendar. You can also rate the app and send us feedback in a couple of taps.
 
 **App Review notes**
-Sign in with Apple or Google. A demo account isn't needed: new accounts get 5 free calls. To test, tap New call, pick any business number (for example a store's public line), type a request, and watch the live status. Ringvo identifies itself as an AI assistant at the start of every call.
+Sign in with Apple or Google. A demo account isn't needed: new accounts get 5 free calls. To test, tap New call, pick any business number (for example a store's public line), type a request, and watch the live status. Ringvo identifies itself as an AI assistant at the start of every call. Ringvo is available in the United States only. The optional $9.99/month subscription is bought on the web through Stripe, which guideline 3.1.1(a) allows for the US storefront. It pays for real phone calls placed through a telephone network.
 
 ## Google Play
 
