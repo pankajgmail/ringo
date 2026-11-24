@@ -10,8 +10,7 @@
         "EXPO_PUBLIC_API_URL": "https://dhab8f4nxogwy.cloudfront.net",
         "EXPO_PUBLIC_WEB_URL": "https://dhab8f4nxogwy.cloudfront.net",
         "EXPO_PUBLIC_COGNITO_DOMAIN": "https://ringo-dev-334076860223.auth.us-east-2.amazoncognito.com",
-        "EXPO_PUBLIC_COGNITO_CLIENT_ID": "40nfe04h21u1nu9nj2q67omgf9",
-        "EXPO_PUBLIC_DEV_USER": ""
+        "EXPO_PUBLIC_COGNITO_CLIENT_ID": "40nfe04h21u1nu9nj2q67omgf9"
       }
     },
     "development": {
