@@ -9,11 +9,13 @@ import { finish } from "../jobs/dialer.ts";
 import { retell } from "../services/retell.ts";
 import { publish } from "../services/live.ts";
 import { toInCall, toOutCall } from "../services/serialize.ts";
+import { assertCanCall } from "../services/billing.ts";
 
 export async function callRoutes(app: FastifyInstance) {
   app.post("/v1/calls", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (req, reply) => {
     const input = OutCallInputSchema.parse(req.body);
     if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringo can call for you" });
+    await assertCanCall(req.user);
     const provider = PROVIDERS.find((p) => p.id === input.providerId);
     const number = input.providerId === "custom" ? input.number! : provider?.number;
     if (!number) return reply.code(400).send({ error: "Unknown provider" });
@@ -49,6 +51,7 @@ export async function callRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string } }>("/v1/calls/:id/repeat", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (req, reply) => {
     const { scheduledAt } = RepeatCallSchema.parse(req.body ?? {});
     if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringo can call for you" });
+    await assertCanCall(req.user);
     const [src] = await db.select().from(schema.outCalls).where(and(eq(schema.outCalls.id, req.params.id), eq(schema.outCalls.userId, req.user.id)));
     if (!src) return reply.code(404).send({ error: "not found" });
     if (!["completed", "cancelled", "failed"].includes(src.status)) return reply.code(409).send({ error: "That call hasn't finished yet" });
@@ -80,6 +83,7 @@ export async function callRoutes(app: FastifyInstance) {
   /** Missed call → "Have Ringo call them back": a new outbound call to the caller, briefed with their message. */
   app.post<{ Params: { id: string } }>("/v1/in-calls/:id/callback", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (req, reply) => {
     if (!req.user.phoneVerifiedAt) return reply.code(403).send({ error: "Verify your phone number before Ringo can call for you" });
+    await assertCanCall(req.user);
     const body = (req.body ?? {}) as { goal?: string };
     const [ic] = await db.select().from(schema.inCalls).where(and(eq(schema.inCalls.id, req.params.id), eq(schema.inCalls.userId, req.user.id)));
     if (!ic) return reply.code(404).send({ error: "not found" });

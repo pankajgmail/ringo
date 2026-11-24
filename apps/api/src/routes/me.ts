@@ -8,6 +8,7 @@ import { audit } from "../lib/audit.ts";
 import { deleteAccount } from "../lib/delete-account.ts";
 import { isAdmin } from "./admin.ts";
 import { calendarConfigured } from "../services/calendar.ts";
+import { messagingInfo } from "../services/messaging.ts";
 import { NumberError, numbersConfigured, provisionNumber } from "../services/numbers.ts";
 
 const verify = env.TWILIO_VERIFY_SERVICE_SID && env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN ? twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN).verify.v2.services(env.TWILIO_VERIFY_SERVICE_SID) : null;
@@ -19,6 +20,7 @@ export async function meRoutes(app: FastifyInstance) {
       id: u.id, name: u.name, email: u.email, phone: u.phone, phoneVerified: !!u.phoneVerifiedAt, address: u.address, zip: u.zip, isAdmin: isAdmin(u),
       carrier: u.carrier, timezone: u.timezone, ringoNumber: u.ringoNumber, forwardingActive: u.forwardingActive,
       monthlyBudgetCents: u.monthlyBudgetCents, numbersAvailable: numbersConfigured(), infoMode: u.infoMode,
+      messaging: messagingInfo(),
       calendar: { available: calendarConfigured(), connected: !!u.googleRefreshToken, email: u.googleCalendarEmail, check: u.calendarCheck, save: u.calendarSave },
       forwarding: u.ringoNumber ? forwardingCodes(u.carrier, u.ringoNumber) : null,
     };

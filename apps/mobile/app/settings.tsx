@@ -1,15 +1,23 @@
 import { useEffect, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
+import { openHosted, returnUrl } from "@/hosted.ts";
 import * as Clipboard from "expo-clipboard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useApi } from "@/api.ts";
+import { useApi, type Billing } from "@/api.ts";
 import { useAuth } from "@/auth.tsx";
-import { Acc, Button, ErrorBox, Field, Icon, IconBtn, Initials, Loading, Meta, MetaText, PageHeader, Pill, Seg, s, useAccordion, useToast } from "@/ui.tsx";
+import { Acc, Button, Choice, ErrorBox, Field, Icon, IconBtn, Initials, Loading, Meta, MetaText, PageHeader, Pill, Seg, s, useAccordion, useToast } from "@/ui.tsx";
 import type { InfoMode } from "@ringo/shared";
 import { fmtPhone, toE164 } from "@/format.ts";
 import { c } from "@/theme.ts";
+
+const INFO_SUB: Record<InfoMode, string> = {
+  prompt: "Ask me in the app", sms: "Text me (SMS)", whatsapp: "Message me on WhatsApp", conference: "Call me and connect me to the rep",
+};
+const fmtPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+const planSub = (b: Billing) =>
+  b.subscribed ? (b.cancelAtPeriodEnd && b.renewsAt ? `Ends ${fmtDate(b.renewsAt)}` : "Unlimited calls") : `${b.freeLeft} of ${b.freeCalls} free calls left`;
 
 function confirm(msg: string, ok = "Delete") {
   if (Platform.OS === "web") return Promise.resolve(window.confirm(msg));
@@ -21,7 +29,7 @@ export default function Settings() {
   const toast = useToast();
   const { signOut } = useAuth();
   const qc = useQueryClient();
-  const section = useAccordion<"profile" | "calls" | "calendar" | "line" | "account">();
+  const section = useAccordion<"profile" | "plan" | "calls" | "calendar" | "line" | "account">();
   const me = useQuery({ queryKey: ["me"], queryFn: api.me });
 
   const [name, setName] = useState("");
@@ -51,12 +59,38 @@ export default function Settings() {
   const infoMode = useMutation({
     mutationFn: (m: InfoMode) => api.setInfoMode(m),
     onMutate: (m) => qc.setQueryData(["me"], (old: typeof me.data) => (old ? { ...old, infoMode: m } : old)),
-    onSuccess: (r) => toast("check", r.infoMode === "conference" ? "Ringo will call you in" : "Ringo will ask in the app"),
+    onSuccess: (r) => toast("check", { conference: "Ringo will call you in", sms: "Ringo will text you", whatsapp: "Ringo will WhatsApp you", prompt: "Ringo will ask in the app" }[r.infoMode]),
     onError: () => qc.invalidateQueries({ queryKey: ["me"] }),
   });
 
   // Google Calendar: the OAuth callback comes back here with ?calendar=connected|error.
-  const params = useLocalSearchParams<{ calendar?: string; message?: string }>();
+  const params = useLocalSearchParams<{ calendar?: string; message?: string; billing?: string }>();
+  const billing = useQuery({ queryKey: ["billing"], queryFn: api.billing });
+  // Stripe Checkout comes back with ?billing=success|cancelled. The webhook may land a moment later, so refetch twice.
+  useEffect(() => {
+    if (!params.billing) return;
+    if (params.billing === "success") { toast("check-circle", "You're subscribed. Thanks!"); section.openOnly("plan"); }
+    const t = setTimeout(() => qc.invalidateQueries({ queryKey: ["billing"] }), 3000);
+    qc.invalidateQueries({ queryKey: ["billing"] });
+    router.setParams({ billing: undefined });
+    return () => clearTimeout(t);
+  }, [params.billing]);
+  const subscribe = useMutation({
+    mutationFn: async () => {
+      const returnTo = returnUrl("/settings");
+      const q = await openHosted((await api.checkout(returnTo)).url, returnTo);
+      if (q?.get("billing") === "success") toast("check-circle", "You're subscribed. Thanks!");
+      await qc.invalidateQueries({ queryKey: ["billing"] });
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["billing"] }), 3000);
+    },
+  });
+  const manage = useMutation({
+    mutationFn: async () => {
+      const returnTo = returnUrl("/settings");
+      await openHosted((await api.billingPortal(returnTo)).url, returnTo);
+      await qc.invalidateQueries({ queryKey: ["billing"] });
+    },
+  });
   useEffect(() => {
     if (!params.calendar) return;
     if (params.calendar === "connected") { toast("check-circle", "Google Calendar connected"); section.openOnly("calendar"); }
@@ -67,12 +101,10 @@ export default function Settings() {
 
   const connectCal = useMutation({
     mutationFn: async () => {
-      const returnTo = Platform.OS === "web" ? `${window.location.origin}/settings` : "ringo://settings";
+      const returnTo = returnUrl("/settings");
       const { url } = await api.connectCalendar(returnTo);
-      if (Platform.OS === "web") { window.location.assign(url); return; }
-      const r = await WebBrowser.openAuthSessionAsync(url, returnTo);
-      if (r.type !== "success") return;
-      const q = new URL(r.url).searchParams;
+      const q = await openHosted(url, returnTo);
+      if (!q) return;
       if (q.get("calendar") === "connected") toast("check-circle", "Google Calendar connected");
       else throw new Error(q.get("message") || "Couldn't connect Google Calendar");
       await qc.invalidateQueries({ queryKey: ["me"] });
@@ -134,18 +166,68 @@ export default function Settings() {
             ) : null}
           </Acc>
 
-          <Acc icon="headphones" title="When Ringo needs something" sub={d?.infoMode === "conference" ? "Call me and connect me to the rep" : "Ask me in the app"} {...section("calls")}>
+          {billing.data?.available ? (
+            <Acc icon="card" title="Plan" sub={planSub(billing.data)}
+              right={billing.data.subscribed ? <Pill text="Ringo monthly" icon="check" color={c.ok} bg={c.okSoft} /> : <Pill text={`${billing.data.freeLeft} free left`} icon="sparkles" color={billing.data.freeLeft ? c.primaryText : c.warn} bg={billing.data.freeLeft ? c.primarySoft : c.warnSoft} />}
+              {...section("plan")}>
+              {billing.data.subscribed ? (
+                <>
+                  <Text style={s.muted}>
+                    Unlimited calls for {fmtPrice(billing.data.priceCents)}/month.{" "}
+                    {billing.data.renewsAt ? (billing.data.cancelAtPeriodEnd ? `Ends ${fmtDate(billing.data.renewsAt)}.` : `Renews ${fmtDate(billing.data.renewsAt)}.`) : ""}
+                  </Text>
+                  {billing.data.status === "past_due" ? <Meta style={{ marginTop: 6 }}><Icon name="alert" size={12} color={c.warn} /><MetaText color={c.warn}>Your last payment didn't go through. Update your card to keep calling.</MetaText></Meta> : null}
+                  <Button title="Manage subscription" icon="card" kind="secondary" slim onPress={() => manage.mutate()} busy={manage.isPending} />
+                  {manage.error ? <ErrorBox error={manage.error} /> : null}
+                </>
+              ) : (
+                <>
+                  <Text style={s.muted}>
+                    {billing.data.freeLeft
+                      ? `You have ${billing.data.freeLeft} of ${billing.data.freeCalls} free calls left. After that, Ringo is ${fmtPrice(billing.data.priceCents)}/month for unlimited calls.`
+                      : `You've used your ${billing.data.freeCalls} free calls. Subscribe for ${fmtPrice(billing.data.priceCents)}/month to keep Ringo calling for you.`}
+                    {" "}Cancel anytime. Answering missed calls stays free.
+                  </Text>
+                  <Button title={`Subscribe, ${fmtPrice(billing.data.priceCents)}/month`} icon="card" onPress={() => subscribe.mutate()} busy={subscribe.isPending} />
+                  <Meta style={{ justifyContent: "center", marginTop: 6 }}><Icon name="shield" size={12} color={c.muted} /><MetaText>Secure payment by Stripe. Ringo never sees your card.</MetaText></Meta>
+                  {subscribe.error ? <ErrorBox error={subscribe.error} /> : null}
+                </>
+              )}
+            </Acc>
+          ) : null}
+
+          <Acc icon="headphones" title="When Ringo needs something" sub={INFO_SUB[d?.infoMode ?? "prompt"]} {...section("calls")}>
             <Text style={[s.muted, { marginBottom: 10 }]}>
-              Ringo only knows your name, phone and address. If the business asks for something else, like an account number, PIN or how many people, how should Ringo get it from you?
+              Ringo only knows your name, phone and address. If the business asks for something else, like an account number, PIN or how many people, or Ringo needs your OK on an offer, how should it reach you?
             </Text>
-            <Seg<InfoMode> label="How Ringo gets missing details" value={d?.infoMode ?? "prompt"} onChange={(m) => infoMode.mutate(m)}
-              options={[{ value: "prompt", label: "Ask in the app", icon: "msg" }, { value: "conference", label: "Conference me in", icon: "phone" }]} />
-            <Text style={[s.meta, { marginTop: 10 }]}>
+            <Choice<InfoMode> label="How Ringo reaches you mid-call" value={d?.infoMode ?? "prompt"} onChange={(m) => infoMode.mutate(m)}
+              options={[
+                { value: "prompt", label: "App", icon: "smartphone" },
+                ...(d?.messaging.sms || d?.infoMode === "sms" ? [{ value: "sms" as const, label: "SMS", icon: "msg" as const }] : []),
+                ...(d?.messaging.whatsapp || d?.infoMode === "whatsapp" ? [{ value: "whatsapp" as const, label: "WhatsApp", icon: "msg" as const }] : []),
+                { value: "conference", label: "Call me in", icon: "phone" },
+              ]} />
+            <Text style={[s.meta, { marginTop: 4 }]}>
               {d?.infoMode === "conference"
-                ? `Ringo calls ${d?.phone ? fmtPhone(d.phone) : "your phone"}, tells you what the rep needs, and connects you. Codes texted to you are still asked in the app.`
-                : "You get a notification with the question and type the answer. Ringo passes it on and doesn't keep it."}
+                ? `Ringo calls ${d?.phone ? fmtPhone(d.phone) : "your phone"}, tells you what the rep needs, and connects you. Offers and texted codes are still asked in the app.`
+                : d?.infoMode === "sms" || d?.infoMode === "whatsapp"
+                  ? `Ringo texts ${d?.phone ? fmtPhone(d.phone) : "your verified phone"} on ${d.infoMode === "sms" ? "SMS" : "WhatsApp"}. Just reply, no need to open the app: type the answer, or 1 accept / 2 decline / 3 join / 4 end for offers. Ringo deletes both messages once it's passed your answer on. You still get the app notification too.`
+                  : "You get a notification with the question and type the answer. Ringo passes it on and doesn't keep it."}
               {" "}If you don't answer within 2 minutes, Ringo politely ends the call and you can try again later.
             </Text>
+            {d?.infoMode === "whatsapp" && d.messaging.whatsappJoin && d.messaging.whatsappNumber ? (
+              <View style={[s.item, { marginTop: 10, marginBottom: 0, gap: 6 }]}>
+                <Meta><Icon name="alert" size={14} color={c.warn} /><MetaText color={c.warn}>One-time step for WhatsApp</MetaText></Meta>
+                <Text selectable style={{ color: c.text, fontSize: 13 }}>
+                  Send "{d.messaging.whatsappJoin}" on WhatsApp to {fmtPhone(d.messaging.whatsappNumber)} so Ringo can message you.
+                </Text>
+                <Button slim kind="secondary" icon="msg" title="Open WhatsApp"
+                  onPress={() => Linking.openURL(`https://wa.me/${d.messaging.whatsappNumber!.replace(/\D/g, "")}?text=${encodeURIComponent(d.messaging.whatsappJoin!)}`)} />
+              </View>
+            ) : null}
+            {(d?.infoMode === "sms" || d?.infoMode === "whatsapp") && !d.phoneVerified ? (
+              <Meta style={{ marginTop: 8 }}><Icon name="alert" size={12} color={c.warn} /><MetaText color={c.warn}>Verify your phone in Profile first, or Ringo will ask in the app instead.</MetaText></Meta>
+            ) : null}
             {infoMode.error ? <ErrorBox error={infoMode.error} /> : null}
           </Acc>
 

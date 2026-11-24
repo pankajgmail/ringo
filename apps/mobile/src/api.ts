@@ -11,6 +11,7 @@ export class ApiError extends Error {
 
 export type Me = Profile & {
   id: string; isAdmin: boolean; numbersAvailable: boolean; phoneVerified: boolean; ringoNumber: string | null; forwardingActive: boolean; monthlyBudgetCents: number; infoMode: InfoMode;
+  messaging: { sms: boolean; whatsapp: boolean; whatsappNumber: string | null; whatsappJoin: string | null };
   calendar: { available: boolean; connected: boolean; email: string | null; check: boolean; save: boolean };
   forwarding: ReturnType<typeof forwardingCodes> | null;
 };
@@ -25,6 +26,11 @@ export type AdminStats = {
 /** Business search result. kind "service" = a national brand's customer-service line. */
 export type Savings = { savedCents: number; monthSavedCents: number; holdSec: number; talkSec: number; done: number; inCalls: number };
 export type Prefs = { infoMode?: InfoMode; calendarCheck?: boolean; calendarSave?: boolean };
+
+export type Billing = {
+  available: boolean; subscribed: boolean; status: string | null; renewsAt: string | null; cancelAtPeriodEnd: boolean;
+  freeCalls: number; freeLeft: number; priceCents: number;
+};
 
 export type PlaceHit = { id: string; name: string; number: string; address: string; kind: "service" | "place"; providerId?: string; openNow?: boolean };
 
@@ -68,6 +74,9 @@ export function useApi() {
     savings: () => req<Savings>("GET", "/v1/savings"),
     repeatCall: (id: string, scheduledAt?: string) => req<OutCall>("POST", `/v1/calls/${id}/repeat`, scheduledAt ? { scheduledAt } : {}),
     callBack: (inCallId: string) => req<OutCall>("POST", `/v1/in-calls/${inCallId}/callback`, {}),
+    billing: () => req<Billing>("GET", "/v1/billing"),
+    checkout: (returnTo: string) => req<{ url: string }>("POST", "/v1/billing/checkout", { returnTo }),
+    billingPortal: (returnTo: string) => req<{ url: string }>("POST", "/v1/billing/portal", { returnTo }),
     getNumber: () => req<{ ringoNumber: string }>("POST", "/v1/me/number"),
     setForwarding: (active: boolean) => req("PUT", "/v1/me/forwarding", { active }),
     deleteMe: () => req("DELETE", "/v1/me"),

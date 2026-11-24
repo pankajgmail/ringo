@@ -8,6 +8,7 @@ import type { User } from "./auth.ts";
 import { audit } from "./audit.ts";
 import { releaseNumber } from "../services/numbers.ts";
 import { disconnect } from "../services/calendar.ts";
+import { cancelBilling } from "../services/billing.ts";
 
 const cognito = env.COGNITO_USER_POOL_ID ? new CognitoIdentityProviderClient({}) : null;
 const LIVE = ["dialing", "in_progress", "awaiting_user"] as const;
@@ -37,6 +38,8 @@ export async function deleteAccount(user: User) {
   await releaseNumber(user);
   // Revoke Ringo's Google Calendar access too.
   if (user.googleRefreshToken) await disconnect(user).catch(() => undefined);
+  // Stop the subscription so a deleted account is never charged again.
+  await cancelBilling(user);
 
   await db.transaction(async (tx) => {
     await tx.update(schema.auditLog).set({ detail: null }).where(eq(schema.auditLog.userId, user.id));

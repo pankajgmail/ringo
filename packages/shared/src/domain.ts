@@ -11,9 +11,20 @@ export type Priority = (typeof PRIORITIES)[number];
 export const ASK_ME = ["ask", "decline", "end"] as const;
 export type AskMe = (typeof ASK_ME)[number];
 
-/** How Ringo gets information it doesn't have (account number, PIN, party size…) during a call. */
-export const INFO_MODES = ["prompt", "conference"] as const;
+/**
+ * How Ringo reaches the user mid-call for information it doesn't have (account number, PIN, party size…) and decisions.
+ * "prompt" = notification in the app; "sms" / "whatsapp" = a text they reply to; "conference" = call them and connect them.
+ */
+export const INFO_MODES = ["prompt", "sms", "whatsapp", "conference"] as const;
 export type InfoMode = (typeof INFO_MODES)[number];
+/** Modes where the question goes out as a text message. */
+export const TEXT_MODES = ["sms", "whatsapp"] as const;
+export type TextMode = (typeof TEXT_MODES)[number];
+
+/** Outbound calls a new account gets before a subscription is needed. */
+export const FREE_CALLS = 5;
+export const PLAN_PRICE_CENTS = 999;
+export const PLAN_LABEL = "$9.99/month";
 
 /** Longest Ringo keeps a rep waiting for the user's answer (or for them to pick up) before ending the call. */
 export const INFO_WAIT_MS = 120_000;

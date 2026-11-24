@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { INFO_WAIT_MS, IN_CALL_TYPES, OUTCOMES, STAGES, type InCallType, type Outcome, type Stage, type TranscriptLine } from "@ringo/shared";
+import { INFO_WAIT_MS, IN_CALL_TYPES, TEXT_MODES, type TextMode, OUTCOMES, STAGES, type InCallType, type Outcome, type Stage, type TranscriptLine } from "@ringo/shared";
 import { db, schema } from "../db/client.ts";
 import { audit } from "../lib/audit.ts";
 import { finish, maybeRedial } from "../jobs/dialer.ts";
@@ -8,6 +8,7 @@ import { retell, verifyRetell } from "../services/retell.ts";
 import { addEvent, busy } from "../services/calendar.ts";
 import { fmtDay, fmtTime, parseLocal, today, zoned } from "../lib/tz.ts";
 import { isOnline, publish, push } from "../services/live.ts";
+import { forgetMessages, questionText, sendText, textConfigured } from "../services/messaging.ts";
 import { toOutCall } from "../services/serialize.ts";
 
 // Retell → Ringo. Every request is signed (x-retell-signature) over the raw body.
@@ -210,9 +211,9 @@ export async function retellRoutes(app: FastifyInstance) {
     }
 
     // Information only the user has: if they chose "conference me in", connect them instead of asking in the app.
-    // Texted one-time codes are always asked in the app; they're quicker to type than to read out.
+    // Texted one-time codes are never conferenced; they're quicker to type than to read out.
+    const [user] = await db.select({ infoMode: schema.users.infoMode, phone: schema.users.phone, verified: schema.users.phoneVerifiedAt }).from(schema.users).where(eq(schema.users.id, row.userId));
     if (kind === "info") {
-      const [user] = await db.select({ infoMode: schema.users.infoMode, phone: schema.users.phone }).from(schema.users).where(eq(schema.users.id, row.userId));
       if (user?.infoMode === "conference" && user.phone) {
         await db.insert(schema.asks).values({ outCallId: row.id, kind, question: args.question, via: "conference", expiresAt: new Date(Date.now() + INFO_WAIT_MS) });
         publish(row.userId, { type: "call.stage", callId: row.id, stage: "talk", line: `Calling you to join: ${args.question}` });
@@ -221,8 +222,23 @@ export async function retellRoutes(app: FastifyInstance) {
       }
     }
 
-    const expiresAt = new Date(Date.now() + (kind === "decision" ? ASK_TIMEOUT_MS : INFO_WAIT_MS));
-    const [ask] = await db.insert(schema.asks).values({ outCallId: row.id, kind, question: args.question, expiresAt }).returning();
+    // "Text me": the question also goes out by SMS or WhatsApp, and a reply answers it (routes/webhooks.ts).
+    // The app notification still goes out, so whichever the user sees first works.
+    const textMode = (TEXT_MODES as readonly string[]).includes(user?.infoMode ?? "") && user?.phone && user.verified && textConfigured(user.infoMode as TextMode)
+      ? (user.infoMode as TextMode) : null;
+    // Over text a decision gets the same 2 minutes as info: people need longer to see a text than a push.
+    const expiresAt = new Date(Date.now() + (kind === "decision" && !textMode ? ASK_TIMEOUT_MS : INFO_WAIT_MS));
+    const [ask] = await db.insert(schema.asks).values({ outCallId: row.id, kind, question: args.question, expiresAt, via: textMode ?? "prompt" }).returning();
+    if (textMode) {
+      try {
+        const sid = await sendText(textMode, user!.phone!, questionText(kind, row.name, args.question));
+        await db.update(schema.asks).set({ messageSids: [sid] }).where(eq(schema.asks.id, ask!.id));
+      } catch (e) {
+        // Not delivered (sender not registered, not in the WhatsApp sandbox…): fall back to the app only.
+        req.log.warn({ err: (e as Error).message, mode: textMode }, "ask text failed");
+        await db.update(schema.asks).set({ via: "prompt" }).where(eq(schema.asks.id, ask!.id));
+      }
+    }
     const [u] = await db.update(schema.outCalls).set({ status: "awaiting_user" }).where(eq(schema.outCalls.id, row.id)).returning();
     if (u) publish(row.userId, { type: "call.updated", call: toOutCall(u) });
     publish(row.userId, {
@@ -230,8 +246,8 @@ export async function retellRoutes(app: FastifyInstance) {
       options: kind === "decision" ? ["accept", "counter", "takeover", "end"] : ["reply", "takeover"], expiresAt: expiresAt.toISOString(),
     });
     const title = kind === "code" ? `${row.name} needs a code` : kind === "info" ? `${row.name} needs information` : `${row.name}: decision needed`;
-    if (!isOnline(row.userId) || kind !== "decision") await push(row.userId, title, args.question, { outCallId: row.id, askId: ask!.id });
-    if (kind !== "decision") endIfUnanswered(ask!.id, row.id, expiresAt);
+    if (!isOnline(row.userId) || kind !== "decision" || textMode) await push(row.userId, title, args.question, { outCallId: row.id, askId: ask!.id });
+    if (kind !== "decision" || textMode) endIfUnanswered(ask!.id, row.id, expiresAt);
 
     return respond(ask!.id, row, kind, expiresAt);
   });
@@ -267,7 +283,8 @@ async function respond(askId: string, row: Row, kind: "decision" | "code" | "inf
   }
   await db.update(schema.outCalls).set({ status: "in_progress" }).where(and(eq(schema.outCalls.id, row.id), eq(schema.outCalls.status, "awaiting_user")));
   if (!answered) {
-    await db.update(schema.asks).set({ answeredAt: new Date(), answer: "timeout" }).where(and(eq(schema.asks.id, askId), isNull(schema.asks.answeredAt)));
+    const [gone] = await db.update(schema.asks).set({ answeredAt: new Date(), answer: "timeout" }).where(and(eq(schema.asks.id, askId), isNull(schema.asks.answeredAt))).returning();
+    if (gone?.messageSids?.length) void forgetMessages(gone.messageSids);
     publish(row.userId, { type: "call.ask_resolved", callId: row.id, askId });
     return {
       answered: false,
@@ -276,6 +293,7 @@ async function respond(askId: string, row: Row, kind: "decision" | "code" | "inf
   }
   // Codes and account details go to the agent once; Ringo doesn't keep them.
   if (answered.answer === "reply" && kind !== "decision") await db.update(schema.asks).set({ note: null }).where(eq(schema.asks.id, askId));
+  if (answered.messageSids?.length) void forgetMessages(answered.messageSids);
   const instructions: Record<string, string> = {
     accept: "The account holder accepts. Confirm the details and ask for a reference number.",
     counter: "The account holder declines. Ask politely for a better outcome, or for a supervisor.",

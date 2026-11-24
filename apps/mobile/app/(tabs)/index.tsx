@@ -53,6 +53,9 @@ export default function OutCall() {
   const upcoming = useQuery({ queryKey: ["calls", "upcoming"], queryFn: () => api.calls("upcoming"), refetchInterval: 15_000 });
   const history = useQuery({ queryKey: ["calls", "history"], queryFn: () => api.calls("history") });
   const savings = useQuery({ queryKey: ["savings"], queryFn: api.savings });
+  const billing = useQuery({ queryKey: ["billing"], queryFn: api.billing });
+  const outOfCalls = !!billing.data?.available && !billing.data.subscribed && billing.data.freeLeft === 0;
+  const price = billing.data ? `$${(billing.data.priceCents / 100).toFixed(2)}` : "";
 
   const section = useAccordion<"new" | "upcoming" | "history">();
   const [whoMode, setWhoMode] = useState<WhoMode>("provider");
@@ -87,6 +90,7 @@ export default function OutCall() {
       toast(when === "now" ? "phone" : "cal", when === "now" ? `Calling ${call.name}…` : `Scheduled ${call.name}`);
       qc.invalidateQueries({ queryKey: ["calls"] });
       qc.invalidateQueries({ queryKey: ["savings"] });
+      qc.invalidateQueries({ queryKey: ["billing"] });
       section.openOnly("upcoming");
     },
   });
@@ -147,6 +151,21 @@ export default function OutCall() {
       ) : null}
 
       {savings.data ? <SavingsCard s={savings.data} /> : null}
+
+      {billing.data?.available && !billing.data.subscribed ? (
+        <Pressable onPress={() => router.push("/settings")} accessibilityRole="button"
+          accessibilityLabel={outOfCalls ? "Free calls used up. Subscribe in Settings" : `${billing.data.freeLeft} free calls left. See plan`}
+          style={[s.card, { flexDirection: "row", alignItems: "center", gap: 12, borderColor: outOfCalls ? c.warn : c.border }]}>
+          <Icon name={outOfCalls ? "alert" : "sparkles"} color={outOfCalls ? c.warn : c.primaryText} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.text, fontWeight: "700" }}>
+              {outOfCalls ? "You've used your free calls" : `${billing.data.freeLeft} of ${billing.data.freeCalls} free calls left`}
+            </Text>
+            <Text style={s.meta}>{outOfCalls ? `Subscribe for ${price}/month to keep calling` : `Then ${price}/month for unlimited calls`}</Text>
+          </View>
+          <Icon name="chev" size={16} color={c.muted} />
+        </Pressable>
+      ) : null}
 
       <View style={{ marginBottom: 12 }}>
         <Text style={[s.meta, { marginBottom: 6 }]}>Quick start</Text>
@@ -242,6 +261,7 @@ export default function OutCall() {
         ) : null}
 
         {formErr ? <ErrorLine text={formErr} /> : create.error ? <ErrorBox error={create.error} /> : null}
+        {outOfCalls ? <Button title={`Subscribe to keep calling, ${price}/mo`} icon="card" onPress={() => router.push("/settings")} /> : null}
         <Button title={holdForMe ? (when === "now" ? "Hold for me now" : "Schedule hold for me") : when === "now" ? "Call now" : "Schedule call"} icon={when === "now" ? "phone" : "cal"} onPress={submit} busy={create.isPending} />
         <Meta style={{ justifyContent: "center", marginTop: 10 }}>
           <Icon name="shield" size={12} color={c.muted} />

@@ -3,7 +3,7 @@ import { boolean, customType, index, integer, jsonb, pgEnum, pgTable, text, time
 
 const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 import { ASK_ME, CARRIERS, CATEGORIES, IN_CALL_TYPES, OUTCOMES, OUT_CALL_STATUSES, PRIORITIES, STAGES } from "@ringo/shared";
-import type { TranscriptLine } from "@ringo/shared";
+import type { InfoMode, TranscriptLine } from "@ringo/shared";
 
 
 export const carrierEnum = pgEnum("carrier", CARRIERS);
@@ -37,7 +37,13 @@ export const users = pgTable("users", {
   ringoNumber: text("ringo_number").unique(),
   twilioNumberSid: text("twilio_number_sid"),
   /** "prompt" = ask in the app; "conference" = call the user's phone and connect them to the rep. */
-  infoMode: text("info_mode").$type<"prompt" | "conference">().notNull().default("prompt"),
+  infoMode: text("info_mode").$type<InfoMode>().notNull().default("prompt"),
+  /** Stripe billing. Status mirrors the Stripe subscription (active, trialing, past_due, canceled…), kept fresh by webhook. */
+  stripeCustomerId: text("stripe_customer_id").unique(),
+  subscriptionId: text("subscription_id"),
+  subscriptionStatus: text("subscription_status"),
+  subscriptionPeriodEnd: timestamp("subscription_period_end", { withTimezone: true }),
+  subscriptionCancelAtPeriodEnd: boolean("subscription_cancel_at_period_end").notNull().default(false),
   /** Google Calendar link. The refresh token is envelope-encrypted (KMS), bound to the user id. */
   googleCalendarEmail: text("google_calendar_email"),
   googleRefreshToken: bytea("google_refresh_token"),
@@ -106,8 +112,10 @@ export const asks = pgTable("asks", {
   note: text("note"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   answeredAt: timestamp("answered_at", { withTimezone: true }),
-  /** How this ask reached the user: in the app, or by conferencing them in. */
-  via: text("via").$type<"prompt" | "conference">().notNull().default("prompt"),
+  /** How this ask reached the user: in the app, by SMS or WhatsApp, or by conferencing them in. */
+  via: text("via").$type<InfoMode>().notNull().default("prompt"),
+  /** Twilio SIDs of the question text and the reply, deleted from Twilio once answered (they can hold PINs). */
+  messageSids: jsonb("message_sids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   ...timestamps,
 });
 

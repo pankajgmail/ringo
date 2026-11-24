@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+/** Optional secret: Parameter Store can't hold an empty string, so "-" means "not set". */
+const optional = z.string().default("").transform((v) => (v.trim() === "-" ? "" : v.trim()));
 const bool = z.enum(["true", "false"]).default("false").transform((v) => v === "true");
 
 const Env = z
@@ -26,6 +28,15 @@ const Env = z
     TWILIO_SIP_USERNAME: z.string().default(""),
     TWILIO_SIP_PASSWORD: z.string().default(""),
     DEFAULT_FROM_NUMBER: z.string().default(""),
+    /** Number Ringo texts questions from (SMS). Defaults to DEFAULT_FROM_NUMBER. US 10DLC numbers need A2P registration to deliver. */
+    TWILIO_SMS_FROM: z.string().default(""),
+    /** WhatsApp sender, e.g. "whatsapp:+14155238886" (Twilio sandbox) or an approved WhatsApp Business number. Empty: WhatsApp off. */
+    TWILIO_WHATSAPP_FROM: z.string().default(""),
+    /** Sandbox join phrase shown in Settings ("join some-words"); empty for a production sender. */
+    TWILIO_WHATSAPP_JOIN: z.string().default(""),
+    /** Stripe (subscriptions). Empty: billing off and calls aren't limited. */
+    STRIPE_SECRET_KEY: optional,
+    STRIPE_WEBHOOK_SECRET: optional,
     /** Google Places API (New) key for business search. Empty: only the built-in national brands are searchable. */
     GOOGLE_PLACES_API_KEY: z.string().default(""),
     /** Google OAuth web client used to connect Google Calendar (the same client Cognito uses for sign-in). */

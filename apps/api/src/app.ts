@@ -12,6 +12,8 @@ import { placesRoutes } from "./routes/places.ts";
 import { adminRoutes } from "./routes/admin.ts";
 import { retellRoutes } from "./routes/retell.ts";
 import { calendarCallback, calendarRoutes } from "./routes/calendar.ts";
+import { billingRoutes } from "./routes/billing.ts";
+import { webhookRoutes } from "./routes/webhooks.ts";
 import { attach } from "./services/live.ts";
 
 export async function buildApp() {
@@ -42,6 +44,7 @@ export async function buildApp() {
     req.log.error(err);
     const e = err as { statusCode?: number; message?: string };
     const status = e.statusCode ?? 500;
+    if (status === 402) return reply.code(402).send({ error: e.message, code: "payment_required" });
     return reply.code(status).send({ error: status >= 500 ? "internal_error" : e.message });
   });
 
@@ -65,6 +68,8 @@ export async function buildApp() {
   await app.register(retellRoutes);
   // Google sends the browser back here after calendar consent; the user is identified by the encrypted state.
   await app.register(calendarCallback);
+  // Twilio message replies and Stripe events: signature-checked, no user session.
+  await app.register(webhookRoutes);
 
   // App API: Cognito-authenticated.
   await app.register(async (api) => {
@@ -74,6 +79,7 @@ export async function buildApp() {
     await api.register(placesRoutes);
     await api.register(adminRoutes);
     await api.register(calendarRoutes);
+    await api.register(billingRoutes);
   });
 
   // Live updates. Browsers can't set headers on WebSocket, so the token comes as a query param.

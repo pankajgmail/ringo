@@ -257,6 +257,10 @@ export class RingoStack extends Stack {
           ADMIN_EMAILS: (this.node.tryGetContext("adminEmails") as string | undefined) ?? "",
           // Google Calendar connect reuses the sign-in OAuth client (its redirect URIs include /v1/calendar/callback).
           GOOGLE_OAUTH_CLIENT_ID: props.googleClientId,
+          // Mid-call questions by text. WhatsApp: the Twilio sandbox sender until a WhatsApp Business sender is approved.
+          TWILIO_SMS_FROM: (this.node.tryGetContext("smsFrom") as string | undefined) ?? "",
+          TWILIO_WHATSAPP_FROM: (this.node.tryGetContext("whatsappFrom") as string | undefined) ?? "",
+          TWILIO_WHATSAPP_JOIN: (this.node.tryGetContext("whatsappJoin") as string | undefined) ?? "",
           DB_HOST: db.dbInstanceEndpointAddress,
           DB_PORT: db.dbInstanceEndpointPort,
           DB_NAME: "ringo",
@@ -279,6 +283,9 @@ export class RingoStack extends Stack {
           DEFAULT_FROM_NUMBER: s("DEFAULT_FROM_NUMBER"),
           GOOGLE_PLACES_API_KEY: s("GOOGLE_PLACES_API_KEY"),
           GOOGLE_OAUTH_CLIENT_SECRET: s("google-client-secret"),
+          // "-" until Stripe is set up (ringo-billing-setup.sh); the API treats "-" as not configured.
+          STRIPE_SECRET_KEY: s("STRIPE_SECRET_KEY"),
+          STRIPE_WEBHOOK_SECRET: s("STRIPE_WEBHOOK_SECRET"),
         },
       },
     });
