@@ -13,6 +13,7 @@ import { adminRoutes } from "./routes/admin.ts";
 import { retellRoutes } from "./routes/retell.ts";
 import { calendarCallback, calendarRoutes } from "./routes/calendar.ts";
 import { billingRoutes } from "./routes/billing.ts";
+import { feedbackRoutes } from "./routes/feedback.ts";
 import { webhookRoutes } from "./routes/webhooks.ts";
 import { attach } from "./services/live.ts";
 
@@ -80,6 +81,7 @@ export async function buildApp() {
     await api.register(adminRoutes);
     await api.register(calendarRoutes);
     await api.register(billingRoutes);
+    await api.register(feedbackRoutes);
   });
 
   // Live updates. Browsers can't set headers on WebSocket, so the token comes as a query param.

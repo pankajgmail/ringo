@@ -2,14 +2,51 @@ import { useState } from "react";
 import { Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { InCallType } from "@ringo/shared";
+import type { InCallType, Offer } from "@ringo/shared";
 import { useApi } from "@/api.ts";
-import { Acc, Badge, Button, Chip, Choice, Count, Empty, ErrorBox, Icon, Initials, Loading, Meta, MetaText, Pill, Stat, Stats, s, useAccordion, useToast } from "@/ui.tsx";
+import { Acc, Badge, Button, Chip, Choice, Count, Empty, ErrorBox, Icon, Initials, Loading, Meta, MetaText, Pill, Stat, Stats, s, useAccordion, useToast, type IconName } from "@/ui.tsx";
 import { IN_TYPE } from "@/labels.ts";
 import { fmtPhone, fmtShort, fmtWhen } from "@/format.ts";
 import { c } from "@/theme.ts";
 
 type Filter = "all" | InCallType;
+
+/** What Ringo does when it picks up, so the user knows what to expect. */
+function HowRingoAnswers() {
+  const steps: [IconName, string][] = [
+    ["clock", "If you don't answer within about 5 rings (30 seconds), the call goes to Ringo."],
+    ["msg", "Ringo greets the caller as your assistant and takes a message with a callback number."],
+    ["tag", "Sales or marketing call? Ringo asks what's in it for you, what value you'd get, how much it costs, and whether a deal ends soon that you'd need to apply by."],
+    ["ban", "Robocalls and scams are told you're not interested, and the call ends."],
+    ["history", "A summary of every call is saved below in Call history."],
+  ];
+  return (
+    <View style={{ gap: 8, marginTop: 12, marginBottom: 4 }}>
+      <Text style={s.label} accessibilityRole="header">How Ringo answers</Text>
+      {steps.map(([icon, text]) => (
+        <View key={icon} style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
+          <View style={{ marginTop: 1 }}><Icon name={icon} size={16} color={c.primaryText} /></View>
+          <Text style={{ color: "#cfd3e0", fontSize: 13, lineHeight: 18, flex: 1 }}>{text}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** The answers a sales caller gave to Ringo's questions. */
+function OfferBox({ offer }: { offer: Offer }) {
+  const rows: [IconName, string, string | null][] = [["sparkles", "What you get", offer.value], ["card", "Cost", offer.price], ["cal", "Deal ends", offer.deadline]];
+  return (
+    <View style={{ marginTop: 8, padding: 10, gap: 6, borderRadius: 12, backgroundColor: c.warnSoft, borderWidth: 1, borderColor: "rgba(245,158,11,.35)" }}>
+      {rows.filter(([, , v]) => v).map(([icon, label, v]) => (
+        <View key={label} style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }} accessible accessibilityLabel={`${label}: ${v}`}>
+          <View style={{ marginTop: 1 }}><Icon name={icon} size={14} color={c.amber} /></View>
+          <Text style={{ color: c.text, fontSize: 13, lineHeight: 18, flex: 1 }}><Text style={{ fontWeight: "700" }}>{label}: </Text>{v}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function InCalls() {
   const api = useApi();
@@ -35,6 +72,7 @@ export default function InCalls() {
       <Stats>
         <Stat icon="headphones" value={calls.data ? all.length : "–"} label="Answered" color={c.primaryText} />
         <Stat icon="bell" value={calls.data ? n("important") : "–"} label="Important" color={c.bad} />
+        <Stat icon="tag" value={calls.data ? n("sales") : "–"} label="Offers" color={c.amber} />
         <Stat icon="ban" value={calls.data ? n("spam") : "–"} label="Spam blocked" color={c.muted} />
       </Stats>
 
@@ -57,6 +95,7 @@ export default function InCalls() {
             ? `Calls you don't pick up go to your Ringo line ${fmtPhone(me.data.ringoNumber)}. Ringo screens them, blocks spam and takes a message.`
             : "You'll get a Ringo line once your account is set up."}
         </Text>
+        <HowRingoAnswers />
         {me.data?.ringoNumber ? <Button title={on ? "Forwarding settings" : "Set up forwarding"} icon="forward" kind={on ? "secondary" : "primary"} onPress={() => router.push("/forwarding")} /> : null}
       </Acc>
 
@@ -64,7 +103,7 @@ export default function InCalls() {
         sub={all[0] ? `Last: ${all[0].callerName ?? fmtPhone(all[0].fromNumber)} · ${IN_TYPE[all[0].type].label}` : "No calls yet"} {...section("history")}>
         <Choice<Filter> label="Show" value={filter} onChange={setFilter} options={[
           { value: "all", label: "All", icon: "history" }, { value: "important", label: "Important", icon: "bell" },
-          { value: "message", label: "Messages", icon: "msg" }, { value: "spam", label: "Spam", icon: "ban" }]} />
+          { value: "message", label: "Messages", icon: "msg" }, { value: "sales", label: "Offers", icon: "tag" }, { value: "spam", label: "Spam", icon: "ban" }]} />
         {calls.isLoading ? <Loading /> : calls.error ? <ErrorBox error={calls.error} onRetry={calls.refetch} /> : rows.length ? rows.map((r) => {
           const t = IN_TYPE[r.type];
           return (
@@ -78,6 +117,7 @@ export default function InCalls() {
                 <Pill text={t.label} color={t.color} bg={t.bg} />
               </View>
               {r.summary ? <Text style={{ color: "#cfd3e0", fontSize: 13, marginTop: 8, lineHeight: 18 }}>{r.summary}</Text> : null}
+              {r.offer ? <OfferBox offer={r.offer} /> : null}
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
                 {r.durationSec ? <Chip icon="clock" text={fmtShort(r.durationSec)} /> : null}
                 <Chip icon="phone" text={fmtPhone(r.fromNumber)} />

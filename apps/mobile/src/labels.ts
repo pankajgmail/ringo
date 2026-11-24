@@ -25,6 +25,7 @@ export const OUTCOME: Record<Outcome, { label: string; icon: IconName; color: st
 export const IN_TYPE: Record<InCallType, { label: string; icon: IconName; color: string; bg: string }> = {
   important: { label: "Important", icon: "bell", color: c.bad, bg: c.badSoft },
   message: { label: "Message", icon: "msg", color: c.info, bg: c.infoSoft },
+  sales: { label: "Offer", icon: "tag", color: c.amber, bg: c.warnSoft },
   spam: { label: "Spam", icon: "ban", color: c.muted, bg: "#232a3f" },
 };
 

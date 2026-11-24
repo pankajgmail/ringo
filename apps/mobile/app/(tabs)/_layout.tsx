@@ -27,7 +27,10 @@ function AppBar({ state, navigateToTab }: BottomTabBarProps) {
             Never wait <Text style={{ color: c.amber, fontWeight: "800" }}>on hold again.</Text>
           </Text>
         </View>
-        <IconBtn icon="gear" label={incomplete ? "Settings, profile incomplete" : "Settings"} dot={incomplete} onPress={() => router.push("/settings")} />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <IconBtn icon="star" label="Send feedback" onPress={() => router.push("/feedback")} />
+          <IconBtn icon="gear" label={incomplete ? "Settings, profile incomplete" : "Settings"} dot={incomplete} onPress={() => router.push("/settings")} />
+        </View>
       </View>
       <View style={st.tabs} accessibilityRole="tablist">
         {state.routes.filter((r) => TABS[r.name]).map((r) => {

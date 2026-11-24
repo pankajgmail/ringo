@@ -3,7 +3,7 @@ import { boolean, customType, index, integer, jsonb, pgEnum, pgTable, text, time
 
 const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 import { ASK_ME, CARRIERS, CATEGORIES, IN_CALL_TYPES, OUTCOMES, OUT_CALL_STATUSES, PRIORITIES, STAGES } from "@ringo/shared";
-import type { InfoMode, TranscriptLine } from "@ringo/shared";
+import type { InfoMode, Offer, TranscriptLine } from "@ringo/shared";
 
 
 export const carrierEnum = pgEnum("carrier", CARRIERS);
@@ -128,12 +128,24 @@ export const inCalls = pgTable("in_calls", {
   type: inTypeEnum("type").notNull().default("message"),
   summary: text("summary"),
   callbackNumber: text("callback_number"),
+  offer: jsonb("offer").$type<Offer>(),
   transcript: jsonb("transcript").$type<TranscriptLine[]>().notNull().default(sql`'[]'::jsonb`),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   durationSec: integer("duration_sec"),
   costCents: integer("cost_cents"),
   ...timestamps,
 }, (t) => [index("in_calls_user_started_idx").on(t.userId, t.startedAt)]);
+
+/** Star rating + comment from the app's feedback screen. Deleted with the user. */
+export const feedback = pgTable("feedback", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
+  platform: text("platform"),
+  appVersion: text("app_version"),
+  ...timestamps,
+}, (t) => [index("feedback_created_idx").on(t.createdAt)]);
 
 export const pushTokens = pgTable("push_tokens", {
   id: uuid("id").primaryKey().defaultRandom(),

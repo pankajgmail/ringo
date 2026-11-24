@@ -43,6 +43,13 @@
       "when": 1795503144042,
       "tag": "0005_billing_messaging",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795505982114,
+      "tag": "0006_feedback_offers",
+      "breakpoints": true
     }
   ]
 }

@@ -75,10 +75,13 @@ const outcomeFields = [
   { type: "string" as const, name: "follow_up_reason", description: "Short reason for the follow-up, e.g. 'check the refund posted'. Else empty." },
 ];
 const inboundFields = [
-  { type: "enum" as const, name: "caller_type", description: "important = time-sensitive or from a doctor, school, bank, courier, employer; message = normal; spam = sales/robocall.", choices: ["important", "message", "spam"] },
+  { type: "enum" as const, name: "caller_type", description: "important = time-sensitive or from a doctor, school, bank, courier, employer; message = normal; sales = a real person pitching an offer, promotion or service; spam = robocall, recording, scam, warranty or survey.", choices: ["important", "message", "sales", "spam"] },
   { type: "string" as const, name: "caller_name", description: "Caller's name and organization." },
   { type: "string" as const, name: "message", description: "Summary of the conversation in two or three sentences: who called, why, any details they gave, and the best callback time." },
   { type: "string" as const, name: "callback_number", description: "Callback number in E.164 if given, else empty." },
+  { type: "string" as const, name: "offer_value", description: "Sales calls only: what's being offered and the value or benefit to the user, in one sentence. Else empty." },
+  { type: "string" as const, name: "offer_price", description: "Sales calls only: what the user would pay (price, fees, contract length), as stated. 'Not stated' if they wouldn't say. Else empty." },
+  { type: "string" as const, name: "offer_deadline", description: "Sales calls only: any deal or deadline ending soon and the date to apply by. 'None' if there isn't one. Else empty." },
 ];
 
 async function upsert(name: string, prompt: string, tools: unknown[], analysis: unknown[], extra: Record<string, unknown> = {}) {

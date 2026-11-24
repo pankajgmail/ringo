@@ -373,6 +373,8 @@ async function handleInbound(event: string, call: RetellCall) {
   if (!user || event !== "call_analyzed") return;
   const data = call.call_analysis?.custom_analysis_data ?? {};
   const type: InCallType = pick(data.caller_type, IN_CALL_TYPES, "message");
+  const field = (k: string) => { const v = String(data[k] ?? "").trim(); return v && !/^(n\/a|none|unknown|not (given|mentioned))\.?$/i.test(v) ? v : null; };
+  const offer = type === "sales" ? { value: field("offer_value"), price: field("offer_price"), deadline: field("offer_deadline") } : null;
   const [row] = await db.insert(schema.inCalls).values({
     userId: user.id,
     retellCallId: call.call_id,
@@ -381,12 +383,14 @@ async function handleInbound(event: string, call: RetellCall) {
     type,
     summary: String(data.message || call.call_analysis?.call_summary || ""),
     callbackNumber: data.callback_number ? String(data.callback_number) : null,
+    offer: offer && (offer.value || offer.price || offer.deadline) ? offer : null,
     transcript: toLines(call.transcript_object),
     startedAt: call.start_timestamp ? new Date(call.start_timestamp) : new Date(),
     durationSec: call.duration_ms ? Math.round(call.duration_ms / 1000) : null,
     costCents: call.call_cost?.combined_cost != null ? Math.round(call.call_cost.combined_cost) : null,
   }).onConflictDoNothing().returning();
-  if (row && type !== "spam") {
+  // Sales pitches are saved for later, quietly; spam is just logged.
+  if (row && type !== "spam" && type !== "sales") {
     await push(user.id, type === "important" ? `Important: ${row.callerName ?? row.fromNumber}` : `Message from ${row.callerName ?? row.fromNumber}`, row.summary ?? "", { inCallId: row.id });
   }
 }

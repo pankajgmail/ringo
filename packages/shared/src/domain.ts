@@ -39,7 +39,8 @@ export type Outcome = (typeof OUTCOMES)[number];
 export const STAGES = ["queue", "dial", "menu", "hold", "talk", "done"] as const;
 export type Stage = (typeof STAGES)[number];
 
-export const IN_CALL_TYPES = ["important", "message", "spam"] as const;
+/** sales = a real person pitching something; Ringo asks what it's worth, what it costs and any deadline. spam = robocalls/scams. */
+export const IN_CALL_TYPES = ["important", "message", "sales", "spam"] as const;
 export type InCallType = (typeof IN_CALL_TYPES)[number];
 
 export const CARRIERS = ["att", "tmobile", "verizon"] as const;

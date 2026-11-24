@@ -41,6 +41,7 @@ function Gate() {
           <Stack.Screen name="call/[id]" options={{ headerShown: false, animation: "slide_from_right" }} />
           <Stack.Screen name="forwarding" options={{ headerShown: false, animation: "slide_from_right" }} />
           <Stack.Screen name="admin" options={{ headerShown: false, animation: "slide_from_right" }} />
+          <Stack.Screen name="feedback" options={{ headerShown: false, animation: "slide_from_bottom" }} />
         </Stack.Protected>
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Protected guard={!signedIn} redirectTo="/">

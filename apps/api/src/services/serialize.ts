@@ -18,5 +18,6 @@ export function toInCall(r: typeof schema.inCalls.$inferSelect): InCall {
   return {
     id: r.id, fromNumber: r.fromNumber, callerName: r.callerName, type: r.type, summary: r.summary,
     callbackNumber: r.callbackNumber, startedAt: r.startedAt.toISOString(), durationSec: r.durationSec,
+    offer: r.offer ?? null,
   };
 }

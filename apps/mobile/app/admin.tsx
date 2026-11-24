@@ -85,6 +85,43 @@ function UserRow({ u }: { u: AdminStats["users"][number] }) {
   );
 }
 
+/** Star counts as one-hue bars (amounts on a shared scale), then the newest comments. */
+function FeedbackCard({ f }: { f: AdminStats["feedback"] }) {
+  const max = Math.max(1, ...f.stars);
+  return (
+    <Card>
+      <Text style={s.h}>Feedback</Text>
+      <Text style={s.meta}>{f.total ? `${f.average?.toFixed(1)} out of 5 from ${f.total} ${f.total === 1 ? "rating" : "ratings"}` : "No feedback yet"}</Text>
+      {f.total ? (
+        <View style={{ gap: 6, marginTop: 4 }}>
+          {[5, 4, 3, 2, 1].map((r) => {
+            const n = f.stars[r - 1] ?? 0;
+            return (
+              <View key={r} style={{ flexDirection: "row", alignItems: "center", gap: 8 }} accessible accessibilityLabel={`${r} stars: ${n}`}>
+                <Text style={[s.meta, { width: 14, textAlign: "right" }]}>{r}</Text>
+                <Icon name="star" size={12} color={c.muted} />
+                <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: c.field }}>
+                  {n ? <View style={{ width: `${(n / max) * 100}%`, height: 8, borderRadius: 4, backgroundColor: OUT }} /> : null}
+                </View>
+                <Text style={{ color: c.text, fontSize: 13, fontWeight: "700", width: 28, textAlign: "right", fontVariant: ["tabular-nums"] }}>{n}</Text>
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
+      {f.recent.filter((x) => x.comment).slice(0, 20).map((x) => (
+        <View key={x.id} style={[s.item, { gap: 4, marginBottom: 0 }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={{ color: c.amber, fontWeight: "800" }} accessibilityLabel={`${x.rating} stars`}>{"★".repeat(x.rating)}<Text style={{ color: c.border2 }}>{"★".repeat(5 - x.rating)}</Text></Text>
+            <Text style={[s.meta, { flex: 1, textAlign: "right" }]} numberOfLines={1}>{x.name || x.email} · {fmtDate(x.at)}{x.platform ? ` · ${x.platform}` : ""}</Text>
+          </View>
+          <Text selectable style={{ color: c.text, fontSize: 13, lineHeight: 18 }}>{x.comment}</Text>
+        </View>
+      ))}
+    </Card>
+  );
+}
+
 export default function Admin() {
   const api = useApi();
   const q = useQuery({ queryKey: ["admin-stats"], queryFn: api.adminStats });
@@ -111,6 +148,8 @@ export default function Admin() {
             <Text style={s.meta}>Where every call Ringo placed or will place stands now</Text>
             <OutcomeBars o={d.outcomes} />
           </Card>
+
+          <FeedbackCard f={d.feedback} />
 
           <Card>
             <Text style={s.h}>Who signed up</Text>

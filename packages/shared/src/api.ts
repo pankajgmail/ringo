@@ -94,6 +94,9 @@ export const OutCallSchema = z.object({
 });
 export type OutCall = z.infer<typeof OutCallSchema>;
 
+export const OfferSchema = z.object({ value: z.string().nullable(), price: z.string().nullable(), deadline: z.string().nullable() });
+export type Offer = z.infer<typeof OfferSchema>;
+
 export const InCallSchema = z.object({
   id: z.uuid(),
   fromNumber: z.string(),
@@ -103,8 +106,19 @@ export const InCallSchema = z.object({
   callbackNumber: z.string().nullable(),
   startedAt: z.string(),
   durationSec: z.number().nullable(),
+  /** For sales calls: what the caller is offering, what it costs and any deadline, as Ringo heard it. */
+  offer: OfferSchema.nullable(),
 });
 export type InCall = z.infer<typeof InCallSchema>;
+
+/** In-app feedback: 1 to 5 stars and an optional comment. */
+export const FeedbackSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().trim().max(2000).optional(),
+  platform: z.enum(["ios", "android", "web"]).optional(),
+  appVersion: z.string().max(40).optional(),
+});
+export type Feedback = z.infer<typeof FeedbackSchema>;
 
 /** User's answer to an ask_user prompt raised mid-call. */
 export const AnswerSchema = z.object({

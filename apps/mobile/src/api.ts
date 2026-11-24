@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { Answer, InCall, InfoMode, OutCall, OutCallInput, Profile, TranscriptLine, forwardingCodes } from "@ringo/shared";
+import type { Answer, Feedback, InCall, InfoMode, OutCall, OutCallInput, Profile, TranscriptLine, forwardingCodes } from "@ringo/shared";
 import { config, devAuth } from "./config.ts";
 import { useAuth } from "./auth.tsx";
 
@@ -17,6 +17,7 @@ export type Me = Profile & {
 };
 
 export type AdminStats = {
+  feedback: { total: number; average: number | null; stars: number[]; recent: { id: string; rating: number; comment: string | null; platform: string | null; at: string; name: string; email: string }[] };
   signups: { total: number; last7d: number; verified: number };
   users: { id: string; name: string; email: string; joinedAt: string; phoneVerified: boolean; outCalls: number; inCalls: number }[];
   direction: { out: number; in: number };
@@ -75,6 +76,7 @@ export function useApi() {
     repeatCall: (id: string, scheduledAt?: string) => req<OutCall>("POST", `/v1/calls/${id}/repeat`, scheduledAt ? { scheduledAt } : {}),
     callBack: (inCallId: string) => req<OutCall>("POST", `/v1/in-calls/${inCallId}/callback`, {}),
     billing: () => req<Billing>("GET", "/v1/billing"),
+    sendFeedback: (f: Feedback) => req<{ ok: true }>("POST", "/v1/feedback", f),
     checkout: (returnTo: string) => req<{ url: string }>("POST", "/v1/billing/checkout", { returnTo }),
     billingPortal: (returnTo: string) => req<{ url: string }>("POST", "/v1/billing/portal", { returnTo }),
     getNumber: () => req<{ ringoNumber: string }>("POST", "/v1/me/number"),

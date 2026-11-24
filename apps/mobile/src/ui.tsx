@@ -13,8 +13,8 @@ export type { IconName };
 
 // ---------- Primitives ----------
 
-export function Icon({ name, size = 20, color = c.text, strokeWidth = 2 }: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
-  const xml = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+export function Icon({ name, size = 20, color = c.text, strokeWidth = 2, fill }: { name: IconName; size?: number; color?: string; strokeWidth?: number; fill?: string }) {
+  const xml = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${fill ?? "none"}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
   return (
     <View style={{ width: size, height: size }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none">
       <SvgXml xml={xml} width={size} height={size} />

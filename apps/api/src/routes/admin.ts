@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { count, desc, eq, sql } from "drizzle-orm";
+import { avg, count, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../db/client.ts";
 import { env } from "../env.ts";
 import type { User } from "../lib/auth.ts";
@@ -20,7 +20,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const inCount = db.select({ userId: schema.inCalls.userId, n: count().as("in_n") }).from(schema.inCalls).groupBy(schema.inCalls.userId).as("ic");
 
     const weekAgo = new Date(Date.now() - 7 * 864e5);
-    const [[totals], users, byStatus, [inbound]] = await Promise.all([
+    const [[totals], users, byStatus, [inbound], [fbTotals], fbStars, fbRecent] = await Promise.all([
       db.select({
         total: count(),
         last7d: sql<number>`count(*) filter (where ${schema.users.createdAt} > ${weekAgo})::int`,
@@ -36,6 +36,12 @@ export async function adminRoutes(app: FastifyInstance) {
         .orderBy(desc(schema.users.createdAt)).limit(500),
       db.select({ status: schema.outCalls.status, n: count() }).from(schema.outCalls).groupBy(schema.outCalls.status),
       db.select({ n: count() }).from(schema.inCalls),
+      db.select({ n: count(), avg: avg(schema.feedback.rating) }).from(schema.feedback),
+      db.select({ rating: schema.feedback.rating, n: count() }).from(schema.feedback).groupBy(schema.feedback.rating),
+      db.select({ id: schema.feedback.id, rating: schema.feedback.rating, comment: schema.feedback.comment, platform: schema.feedback.platform,
+        at: schema.feedback.createdAt, name: schema.users.name, email: schema.users.email })
+        .from(schema.feedback).innerJoin(schema.users, eq(schema.users.id, schema.feedback.userId))
+        .orderBy(desc(schema.feedback.createdAt)).limit(50),
     ]);
 
     const st = Object.fromEntries(byStatus.map((r) => [r.status, Number(r.n)])) as Record<string, number>;
@@ -48,6 +54,12 @@ export async function adminRoutes(app: FastifyInstance) {
       signups: { total: Number(totals?.total ?? 0), last7d: totals?.last7d ?? 0, verified: totals?.verified ?? 0 },
       users: users.map((u) => ({ ...u, joinedAt: u.joinedAt.toISOString() })),
       direction: { out, in: inn },
+      feedback: {
+        total: Number(fbTotals?.n ?? 0),
+        average: fbTotals?.avg != null ? Math.round(Number(fbTotals.avg) * 10) / 10 : null,
+        stars: [1, 2, 3, 4, 5].map((r) => Number(fbStars.find((x) => x.rating === r)?.n ?? 0)),
+        recent: fbRecent.map((f) => ({ ...f, at: f.at.toISOString() })),
+      },
       outcomes: { completed: st.completed ?? 0, upcoming: sum(UPCOMING), live: sum(LIVE), failed: st.failed ?? 0, cancelled: st.cancelled ?? 0 },
     };
   });
