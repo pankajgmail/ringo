@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "711082378889",
+    "project_id": "ringo-22cef",
+    "storage_bucket": "ringo-22cef.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:711082378889:android:608d50f9d90c426b936858",
+        "android_client_info": {
+          "package_name": "app.ringo.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUYy9z_jwhNZtfEB5fW_16Nv0SsSPFS98"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
