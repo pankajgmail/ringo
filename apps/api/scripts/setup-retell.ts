@@ -38,7 +38,8 @@ const waitForAnswer = tool("wait_for_answer", "Keep waiting for the account hold
   ask_id: { type: "string", description: "The ask_id from the previous result." },
 }, [], 58_000);
 
-// Warm transfer to the account holder's own phone. Ringo stays with the rep while it rings (up to 2 minutes),
+// Warm transfer to the account holder's own phone. Ringo stays with the rep while it rings (90s, Retell's maximum,
+// which keeps the whole wait inside the 2-minute limit),
 // briefs the account holder privately, then connects them. If they don't pick up the agent gets the call back.
 const conferenceUser = {
   type: "transfer_call" as const,
@@ -47,7 +48,7 @@ const conferenceUser = {
   transfer_destination: { type: "predefined" as const, number: "{{user_phone}}" },
   transfer_option: {
     type: "warm_transfer" as const,
-    transfer_ring_duration_ms: 120_000,
+    transfer_ring_duration_ms: 90_000,
     on_hold_music: "none" as const,
     private_handoff_option: { type: "prompt" as const, prompt: "Tell {{user_name}} in one or two sentences who you are on the line with ({{provider_name}}) and exactly what the rep needs from them, then say you're connecting them now." },
   },
