@@ -61,7 +61,7 @@ export default function Settings() {
   const infoMode = useMutation({
     mutationFn: (m: InfoMode) => api.setInfoMode(m),
     onMutate: (m) => qc.setQueryData(["me"], (old: typeof me.data) => (old ? { ...old, infoMode: m } : old)),
-    onSuccess: (r) => toast("check", { conference: "Ringvo will call you in", sms: "Ringvo will text you", whatsapp: "Ringvo will WhatsApp you", prompt: "Ringvo will ask in the app" }[r.infoMode]),
+    onSuccess: (r) => toast("check", { conference: "RingVo will call you in", sms: "RingVo will text you", whatsapp: "RingVo will WhatsApp you", prompt: "RingVo will ask in the app" }[r.infoMode]),
     onError: () => qc.invalidateQueries({ queryKey: ["me"] }),
   });
 
@@ -129,7 +129,7 @@ export default function Settings() {
 
   return (
     <View style={s.screen}>
-      <PageHeader title="Settings" sub="Profile and your Ringvo line" />
+      <PageHeader title="Settings" sub="Profile and your RingVo line" />
       {me.isLoading ? <Loading /> : me.error ? <View style={s.scroll}><ErrorBox error={me.error} onRetry={me.refetch} /></View> : (
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           <View style={{ alignItems: "center", gap: 6, marginVertical: 10 }}>
@@ -170,7 +170,7 @@ export default function Settings() {
 
           {billing.data?.available ? (
             <Acc icon="card" title="Plan" sub={planSub(billing.data)}
-              right={billing.data.subscribed ? <Pill text="Ringvo monthly" icon="check" color={c.ok} bg={c.okSoft} /> : <Pill text={`${billing.data.freeLeft} free left`} icon="sparkles" color={billing.data.freeLeft ? c.primaryText : c.warn} bg={billing.data.freeLeft ? c.primarySoft : c.warnSoft} />}
+              right={billing.data.subscribed ? <Pill text="RingVo monthly" icon="check" color={c.ok} bg={c.okSoft} /> : <Pill text={`${billing.data.freeLeft} free left`} icon="sparkles" color={billing.data.freeLeft ? c.primaryText : c.warn} bg={billing.data.freeLeft ? c.primarySoft : c.warnSoft} />}
               {...section("plan")}>
               {billing.data.subscribed ? (
                 <>
@@ -186,14 +186,14 @@ export default function Settings() {
                 <>
                   <Text style={s.muted}>
                     {billing.data.freeLeft
-                      ? `You have ${billing.data.freeLeft} of ${billing.data.freeCalls} free calls left. After that, Ringvo is ${fmtPrice(billing.data.priceCents)}/month for unlimited calls.`
-                      : `You've used your ${billing.data.freeCalls} free calls. Subscribe for ${fmtPrice(billing.data.priceCents)}/month to keep Ringvo calling for you.`}
+                      ? `You have ${billing.data.freeLeft} of ${billing.data.freeCalls} free calls left. After that, RingVo is ${fmtPrice(billing.data.priceCents)}/month for unlimited calls.`
+                      : `You've used your ${billing.data.freeCalls} free calls. Subscribe for ${fmtPrice(billing.data.priceCents)}/month to keep RingVo calling for you.`}
                     {" "}Cancel anytime. Answering missed calls stays free.
                   </Text>
                   <Button title={`Subscribe, ${fmtPrice(billing.data.priceCents)}/month`} icon="card" onPress={() => subscribe.mutate()} busy={subscribe.isPending} />
-                  <Meta style={{ justifyContent: "center", marginTop: 6 }}><Icon name="shield" size={12} color={c.muted} /><MetaText>Secure payment by Stripe. Ringvo never sees your card.</MetaText></Meta>
+                  <Meta style={{ justifyContent: "center", marginTop: 6 }}><Icon name="shield" size={12} color={c.muted} /><MetaText>Secure payment by Stripe. RingVo never sees your card.</MetaText></Meta>
                   <Text style={[s.meta, { textAlign: "center", marginTop: 6, lineHeight: 17 }]}>
-                    Ringvo monthly renews automatically at {fmtPrice(billing.data.priceCents)} each month until you cancel. Cancel anytime in Manage subscription; you keep access until the end of the paid month.{" "}
+                    RingVo monthly renews automatically at {fmtPrice(billing.data.priceCents)} each month until you cancel. Cancel anytime in Manage subscription; you keep access until the end of the paid month.{" "}
                     <Text accessibilityRole="link" style={{ color: c.primaryText }} onPress={() => Linking.openURL(`${config.webUrl}/terms.html`)}>Terms</Text> ·{" "}
                     <Text accessibilityRole="link" style={{ color: c.primaryText }} onPress={() => Linking.openURL(`${config.webUrl}/privacy.html`)}>Privacy</Text>
                   </Text>
@@ -203,11 +203,11 @@ export default function Settings() {
             </Acc>
           ) : null}
 
-          <Acc icon="headphones" title="When Ringvo needs something" sub={INFO_SUB[d?.infoMode ?? "prompt"]} {...section("calls")}>
+          <Acc icon="headphones" title="When RingVo needs something" sub={INFO_SUB[d?.infoMode ?? "prompt"]} {...section("calls")}>
             <Text style={[s.muted, { marginBottom: 10 }]}>
-              Ringvo only knows your name, phone and address. If the business asks for something else, like an account number, PIN or how many people, or Ringvo needs your OK on an offer, how should it reach you?
+              RingVo only knows your name, phone and address. If the business asks for something else, like an account number, PIN or how many people, or RingVo needs your OK on an offer, how should it reach you?
             </Text>
-            <Choice<InfoMode> label="How Ringvo reaches you mid-call" value={d?.infoMode ?? "prompt"} onChange={(m) => infoMode.mutate(m)}
+            <Choice<InfoMode> label="How RingVo reaches you mid-call" value={d?.infoMode ?? "prompt"} onChange={(m) => infoMode.mutate(m)}
               options={[
                 { value: "prompt", label: "App", icon: "smartphone" },
                 ...(d?.messaging.sms || d?.infoMode === "sms" ? [{ value: "sms" as const, label: "SMS", icon: "msg" as const }] : []),
@@ -216,30 +216,30 @@ export default function Settings() {
               ]} />
             <Text style={[s.meta, { marginTop: 4 }]}>
               {d?.infoMode === "conference"
-                ? `Ringvo calls ${d?.phone ? fmtPhone(d.phone) : "your phone"}, tells you what the rep needs, and connects you. Offers and texted codes are still asked in the app.`
+                ? `RingVo calls ${d?.phone ? fmtPhone(d.phone) : "your phone"}, tells you what the rep needs, and connects you. Offers and texted codes are still asked in the app.`
                 : d?.infoMode === "sms" || d?.infoMode === "whatsapp"
-                  ? `Ringvo texts ${d?.phone ? fmtPhone(d.phone) : "your verified phone"} on ${d.infoMode === "sms" ? "SMS" : "WhatsApp"}. Just reply, no need to open the app: type the answer, or 1 accept / 2 decline / 3 join / 4 end for offers. Ringvo deletes both messages once it's passed your answer on. You still get the app notification too.`
-                  : "You get a notification with the question and type the answer. Ringvo passes it on and doesn't keep it."}
-              {" "}If you don't answer within 2 minutes, Ringvo politely ends the call and you can try again later.
+                  ? `RingVo texts ${d?.phone ? fmtPhone(d.phone) : "your verified phone"} on ${d.infoMode === "sms" ? "SMS" : "WhatsApp"}. Just reply, no need to open the app: type the answer, or 1 accept / 2 decline / 3 join / 4 end for offers. RingVo deletes both messages once it's passed your answer on. You still get the app notification too.`
+                  : "You get a notification with the question and type the answer. RingVo passes it on and doesn't keep it."}
+              {" "}If you don't answer within 2 minutes, RingVo politely ends the call and you can try again later.
             </Text>
             {d?.infoMode === "whatsapp" && d.messaging.whatsappJoin && d.messaging.whatsappNumber ? (
               <View style={[s.item, { marginTop: 10, marginBottom: 0, gap: 6 }]}>
                 <Meta><Icon name="alert" size={14} color={c.warn} /><MetaText color={c.warn}>One-time step for WhatsApp</MetaText></Meta>
                 <Text selectable style={{ color: c.text, fontSize: 13 }}>
-                  Send "{d.messaging.whatsappJoin}" on WhatsApp to {fmtPhone(d.messaging.whatsappNumber)} so Ringvo can message you.
+                  Send "{d.messaging.whatsappJoin}" on WhatsApp to {fmtPhone(d.messaging.whatsappNumber)} so RingVo can message you.
                 </Text>
                 <Button slim kind="secondary" icon="msg" title="Open WhatsApp"
                   onPress={() => Linking.openURL(`https://wa.me/${d.messaging.whatsappNumber!.replace(/\D/g, "")}?text=${encodeURIComponent(d.messaging.whatsappJoin!)}`)} />
               </View>
             ) : null}
             {(d?.infoMode === "sms" || d?.infoMode === "whatsapp") && !d.phoneVerified ? (
-              <Meta style={{ marginTop: 8 }}><Icon name="alert" size={12} color={c.warn} /><MetaText color={c.warn}>Verify your phone in Profile first, or Ringvo will ask in the app instead.</MetaText></Meta>
+              <Meta style={{ marginTop: 8 }}><Icon name="alert" size={12} color={c.warn} /><MetaText color={c.warn}>Verify your phone in Profile first, or RingVo will ask in the app instead.</MetaText></Meta>
             ) : null}
             {infoMode.error ? <ErrorBox error={infoMode.error} /> : null}
           </Acc>
 
           <Acc icon="cal" title="Google Calendar"
-            sub={d?.calendar.connected ? d.calendar.email ?? "Connected" : "Let Ringvo book around your schedule"}
+            sub={d?.calendar.connected ? d.calendar.email ?? "Connected" : "Let RingVo book around your schedule"}
             right={d?.calendar.connected ? <Pill text="Connected" icon="check" color={c.ok} bg={c.okSoft} /> : undefined} {...section("calendar")}>
             {!d?.calendar.available ? (
               <Text style={s.muted}>Calendar connection isn't switched on yet.</Text>
@@ -250,23 +250,23 @@ export default function Settings() {
                 <Seg<"on" | "off"> label="Check my availability" value={d.calendar.check ? "on" : "off"} onChange={(v) => calPref.mutate({ calendarCheck: v === "on" })}
                   options={[{ value: "on", label: "On", icon: "check" }, { value: "off", label: "Off", icon: "x" }]} />
                 <Text style={[s.meta, { marginTop: 6, marginBottom: 12 }]}>
-                  When booking, Ringvo checks whether you're free before agreeing to a time. It only sees busy and free, not your event details.
+                  When booking, RingVo checks whether you're free before agreeing to a time. It only sees busy and free, not your event details.
                 </Text>
                 <Text style={[s.label, { marginBottom: 6 }]}>Save bookings to my calendar</Text>
                 <Seg<"on" | "off"> label="Save bookings to my calendar" value={d.calendar.save ? "on" : "off"} onChange={(v) => calPref.mutate({ calendarSave: v === "on" })}
                   options={[{ value: "on", label: "On", icon: "check" }, { value: "off", label: "Off", icon: "x" }]} />
                 <Text style={[s.meta, { marginTop: 6, marginBottom: 12 }]}>
-                  When Ringvo books an appointment or reservation, it adds the event to your primary calendar with the reference number.
+                  When RingVo books an appointment or reservation, it adds the event to your primary calendar with the reference number.
                 </Text>
                 {calPref.error ? <ErrorBox error={calPref.error} /> : null}
                 <Button title="Disconnect" icon="x" kind="ghost" slim busy={disconnectCal.isPending}
-                  onPress={async () => { if (await confirm("Disconnect Google Calendar? Ringvo won't check or add events anymore.", "Disconnect")) disconnectCal.mutate(); }} />
+                  onPress={async () => { if (await confirm("Disconnect Google Calendar? RingVo won't check or add events anymore.", "Disconnect")) disconnectCal.mutate(); }} />
                 {disconnectCal.error ? <ErrorBox error={disconnectCal.error} /> : null}
               </>
             ) : (
               <>
                 <Text style={[s.muted, { marginBottom: 10 }]}>
-                  Connect your Google Calendar so Ringvo can pick a time you're free when it books something, and add the booking to your calendar. You can turn either off later.
+                  Connect your Google Calendar so RingVo can pick a time you're free when it books something, and add the booking to your calendar. You can turn either off later.
                 </Text>
                 <Button title="Connect Google Calendar" icon="cal" busy={connectCal.isPending} onPress={() => connectCal.mutate()} />
                 {connectCal.error ? <ErrorBox error={connectCal.error} /> : null}
@@ -274,20 +274,20 @@ export default function Settings() {
             )}
           </Acc>
 
-          <Acc icon="signal" title="Your Ringvo line" sub={d?.ringoNumber ? fmtPhone(d.ringoNumber) : "No number yet"}
+          <Acc icon="signal" title="Your RingVo line" sub={d?.ringoNumber ? fmtPhone(d.ringoNumber) : "No number yet"}
             right={d?.forwardingActive ? <Pill text="Forwarding" icon="check" color={c.ok} bg={c.okSoft} /> : undefined} {...section("line")}>
             {d?.ringoNumber ? (
               <>
                 <View style={[s.item, { flexDirection: "row", alignItems: "center", gap: 10 }]}>
                   <Icon name="smartphone" color={c.primaryText} />
                   <Text selectable style={{ color: c.text, fontWeight: "800", fontSize: 17, flex: 1, fontVariant: ["tabular-nums"] }}>{fmtPhone(d.ringoNumber)}</Text>
-                  <IconBtn icon="copy" label="Copy Ringvo number" size={34} onPress={async () => { await Clipboard.setStringAsync(d.ringoNumber!); toast("copy", "Number copied"); }} />
+                  <IconBtn icon="copy" label="Copy RingVo number" size={34} onPress={async () => { await Clipboard.setStringAsync(d.ringoNumber!); toast("copy", "Number copied"); }} />
                 </View>
                 <Pressable onPress={() => router.push("/forwarding")} accessibilityRole="button" style={[s.item, { flexDirection: "row", alignItems: "center", gap: 10 }]}>
                   <Icon name="forward" color={d.forwardingActive ? c.ok : c.muted} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: c.text, fontWeight: "700" }}>Call forwarding</Text>
-                    <Text style={s.meta}>{d.forwardingActive ? "On · Ringvo answers calls you miss" : "Off · set it up in about a minute"}</Text>
+                    <Text style={s.meta}>{d.forwardingActive ? "On · RingVo answers calls you miss" : "Off · set it up in about a minute"}</Text>
                   </View>
                   <Icon name="right" size={16} color={c.muted} />
                 </Pressable>
@@ -297,7 +297,7 @@ export default function Settings() {
                 <Icon name="plus" color={c.primaryText} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: c.text, fontWeight: "700" }}>Get your assistant number</Text>
-                  <Text style={s.meta}>Your own number for Ringvo to answer missed calls</Text>
+                  <Text style={s.meta}>Your own number for RingVo to answer missed calls</Text>
                 </View>
                 <Icon name="right" size={16} color={c.muted} />
               </Pressable>
@@ -312,7 +312,7 @@ export default function Settings() {
               <Text accessibilityRole="link" style={[s.meta, { color: c.primaryText }]} onPress={() => Linking.openURL(`${config.webUrl}/privacy.html`)}>Privacy</Text>
               <Text accessibilityRole="link" style={[s.meta, { color: c.primaryText }]} onPress={() => Linking.openURL(`${config.webUrl}/terms.html`)}>Terms</Text>
             </View>
-            <Text style={[s.meta, { textAlign: "center" }]}>Ringvo {Constants.expoConfig?.version ?? ""}</Text>
+            <Text style={[s.meta, { textAlign: "center" }]}>RingVo {Constants.expoConfig?.version ?? ""}</Text>
             <Button title="Sign out" icon="back" kind="ghost" onPress={signOut} />
             <Button title="Delete my account" icon="trash" kind="danger" busy={delMe.isPending}
               onPress={async () => { if (await confirm("This permanently deletes your profile, call history, messages and recordings. It can't be undone.")) delMe.mutate(); }} />

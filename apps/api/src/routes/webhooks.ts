@@ -18,7 +18,7 @@ export async function webhookRoutes(app: FastifyInstance) {
   });
 
   /**
-   * A reply to a question Ringvo texted (SMS or WhatsApp). The sender's number finds the user; their newest open
+   * A reply to a question RingVo texted (SMS or WhatsApp). The sender's number finds the user; their newest open
    * question by text gets the answer, the same as tapping it in the app. Both messages are then deleted from Twilio.
    */
   app.post("/v1/webhooks/twilio/message", async (req, reply) => {
@@ -33,7 +33,7 @@ export async function webhookRoutes(app: FastifyInstance) {
     const users = await db.select({ id: schema.users.id }).from(schema.users).where(and(eq(schema.users.phone, from), isNotNull(schema.users.phoneVerifiedAt)));
 
     // STOP / HELP: never an answer to a call. STOP also switches the user back to in-app questions.
-    // Twilio sends its own opt-out confirmation, so Ringvo doesn't reply to STOP.
+    // Twilio sends its own opt-out confirmation, so RingVo doesn't reply to STOP.
     const kw = keyword(text, p.OptOutType);
     if (kw === "help") return twiml(HELP_TEXT);
     if (kw === "stop") {
@@ -53,7 +53,7 @@ export async function webhookRoutes(app: FastifyInstance) {
         isNull(schema.asks.answeredAt), gt(schema.asks.expiresAt, new Date()),
       ))
       .orderBy(desc(schema.asks.createdAt)).limit(1);
-    if (!open) return twiml("Ringvo isn't waiting on an answer right now. Open the app to see your calls.");
+    if (!open) return twiml("RingVo isn't waiting on an answer right now. Open the app to see your calls.");
 
     const a = parseReply(open.ask.kind, text);
     const sids = [...open.ask.messageSids, ...(p.MessageSid ? [p.MessageSid] : [])];

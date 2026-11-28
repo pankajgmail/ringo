@@ -145,7 +145,7 @@ export default function Admin() {
 
           <Card>
             <Text style={s.h}>Outbound calls: completed vs scheduled</Text>
-            <Text style={s.meta}>Where every call Ringvo placed or will place stands now</Text>
+            <Text style={s.meta}>Where every call RingVo placed or will place stands now</Text>
             <OutcomeBars o={d.outcomes} />
           </Card>
 

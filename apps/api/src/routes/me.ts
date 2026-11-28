@@ -34,7 +34,7 @@ export async function meRoutes(app: FastifyInstance) {
     return { ok: true, phoneVerified: phoneChanged ? false : !!req.user.phoneVerifiedAt };
   });
 
-  /** How Ringvo gets details it doesn't have mid-call: ask in the app, or conference the user in. */
+  /** How RingVo gets details it doesn't have mid-call: ask in the app, or conference the user in. */
   app.put("/v1/me/preferences", async (req) => {
     const p = PreferencesSchema.parse(req.body);
     if (Object.keys(p).length) await db.update(schema.users).set(p).where(eq(schema.users.id, req.user.id));

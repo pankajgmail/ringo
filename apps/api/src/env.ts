@@ -28,7 +28,7 @@ const Env = z
     TWILIO_SIP_USERNAME: z.string().default(""),
     TWILIO_SIP_PASSWORD: z.string().default(""),
     DEFAULT_FROM_NUMBER: z.string().default(""),
-    /** Number Ringvo texts questions from (SMS). Defaults to DEFAULT_FROM_NUMBER. US 10DLC numbers need A2P registration to deliver. */
+    /** Number RingVo texts questions from (SMS). Defaults to DEFAULT_FROM_NUMBER. US 10DLC numbers need A2P registration to deliver. */
     TWILIO_SMS_FROM: z.string().default(""),
     /** WhatsApp sender, e.g. "whatsapp:+14155238886" (Twilio sandbox) or an approved WhatsApp Business number. Empty: WhatsApp off. */
     TWILIO_WHATSAPP_FROM: z.string().default(""),
@@ -46,7 +46,7 @@ const Env = z
     EXTRA_WEB_ORIGINS: z.string().default("").transform((v) => v.split(",").map((x) => x.trim()).filter(Boolean)),
     /** Comma-separated emails that can open the admin dashboard (sign-ups, call stats). */
     ADMIN_EMAILS: z.string().default("").transform((v) => v.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean)),
-    /** Cap on assistant numbers Ringvo buys (each is a monthly Twilio + Retell charge). */
+    /** Cap on assistant numbers RingVo buys (each is a monthly Twilio + Retell charge). */
     MAX_RINGO_NUMBERS: z.coerce.number().default(25),
     MAX_CALL_MINUTES: z.coerce.number().default(120),
     MAX_CONCURRENT_CALLS_PER_USER: z.coerce.number().default(2),

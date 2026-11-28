@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Ringvo",
+    "name": "RingVo",
     "slug": "ringo",
     "scheme": "ringo",
     "version": "1.1.0",
@@ -22,11 +22,11 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
         },
-        "NSContactsUsageDescription": "Ringvo uses your contacts only when you pick someone for Ringvo to call. Contacts never leave your phone except the one you choose.",
+        "NSContactsUsageDescription": "RingVo shows your contacts so you can pick who it should call. Your contact list stays on your phone; only the people you select are sent to RingVo.",
         "LSApplicationQueriesSchemes": [
           "tel"
         ],
-        "CFBundleDisplayName": "Ringvo"
+        "CFBundleDisplayName": "RingVo"
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -201,7 +201,7 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "Ringvo uses your contacts only when you pick someone for Ringvo to call. Contacts never leave your phone except the one you choose."
+          "contactsPermission": "RingVo shows your contacts so you can pick who it should call. Your contact list stays on your phone; only the people you select are sent to RingVo."
         }
       ],
       [
@@ -235,7 +235,7 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "description": "Ringvo is an AI phone assistant. It calls businesses for you, waits on hold, asks you when it needs a decision, and answers calls you miss.",
+    "description": "RingVo is an AI phone assistant. It calls businesses for you, waits on hold, asks you when it needs a decision, and answers calls you miss.",
     "primaryColor": "#7c6cf6",
     "owner": "ringos-team"
   }

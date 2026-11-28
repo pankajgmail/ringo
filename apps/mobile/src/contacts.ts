@@ -1,23 +1,62 @@
 import { Platform } from "react-native";
-import * as Contacts from "expo-contacts";
+import { Contact, ContactField, ContactsSortOrder, getPermissionsAsync, requestPermissionsAsync } from "expo-contacts";
+import { toE164 } from "./format.ts";
 
-export type PickedContact = { name: string; number: string };
+/** One dialable entry: a contact can appear several times, once per phone number. */
+export type PhoneContact = { key: string; name: string; number: string; label?: string };
+
+export type ContactsResult =
+  | { status: "ok"; contacts: PhoneContact[]; limited: boolean }
+  | { status: "denied"; canAsk: boolean }
+  | { status: "unsupported" };
+
+const FIELDS = [ContactField.FULL_NAME, ContactField.GIVEN_NAME, ContactField.FAMILY_NAME, ContactField.PHONES] as const;
+
+function tidyLabel(l?: string) {
+  if (!l) return undefined;
+  const t = l.replace(/^_\$!<(.+)>!\$_$/, "$1").toLowerCase(); // iOS stores "_$!<Mobile>!$_"
+  return t || undefined;
+}
+
+/** Reads every contact that has a phone number, on the device only. Nothing is uploaded. */
+async function readAll(): Promise<PhoneContact[]> {
+  const rows = await Contact.getAllDetails(FIELDS, { sortOrder: ContactsSortOrder.UserDefault });
+  const out: PhoneContact[] = [];
+  const seen = new Set<string>();
+  for (const r of rows) {
+    const name = (r.fullName || [r.givenName, r.familyName].filter(Boolean).join(" ")).trim();
+    for (const p of r.phones ?? []) {
+      const number = p.number?.trim();
+      if (!number) continue;
+      const k = `${r.id}|${toE164(number)}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ key: k, name: name || number, number, label: tidyLabel(p.label) });
+    }
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+}
 
 /**
- * Opens the phone's contact picker and returns one contact with a phone number.
- * Native: system picker (expo-contacts). Web: the browser Contact Picker API, which only
- * Chrome on Android supports; elsewhere returns "unsupported" so the UI can say so.
+ * Loads the phone's contacts after asking for permission.
+ * Web: there's no contact list, so it opens the browser Contact Picker (Chrome on Android) with multi-select.
  */
-export async function pickContact(): Promise<PickedContact | null | "unsupported"> {
+export async function loadContacts(): Promise<ContactsResult> {
   if (Platform.OS === "web") {
     const nav = navigator as Navigator & { contacts?: { select: (props: string[], opts: { multiple: boolean }) => Promise<{ name?: string[]; tel?: string[] }[]> } };
-    if (!nav.contacts?.select) return "unsupported";
-    const [c] = await nav.contacts.select(["name", "tel"], { multiple: false });
-    if (!c?.tel?.[0]) return null;
-    return { name: c.name?.[0] ?? c.tel[0], number: c.tel[0] };
+    if (!nav.contacts?.select) return { status: "unsupported" };
+    const picked = await nav.contacts.select(["name", "tel"], { multiple: true });
+    const contacts = picked.flatMap((c, i) => (c.tel?.[0] ? [{ key: `web${i}|${c.tel[0]}`, name: c.name?.[0] || c.tel[0], number: c.tel[0] }] : []));
+    return { status: "ok", contacts, limited: true };
   }
-  const c = await Contacts.presentContactPickerAsync();
-  const tel = c?.phoneNumbers?.find((p) => p.number)?.number;
-  if (!c || !tel) return null;
-  return { name: c.name || [c.firstName, c.lastName].filter(Boolean).join(" ") || tel, number: tel };
+  let perm = await getPermissionsAsync();
+  if (!perm.granted && perm.canAskAgain) perm = await requestPermissionsAsync();
+  if (!perm.granted) return { status: "denied", canAsk: perm.canAskAgain };
+  return { status: "ok", contacts: await readAll(), limited: perm.accessPrivileges === "limited" };
+}
+
+/** iOS 18+ "limited access": lets the user share more contacts with RingVo, then reloads the list. */
+export async function shareMoreContacts(): Promise<PhoneContact[]> {
+  await Contact.presentAccessPicker();
+  return readAll();
 }

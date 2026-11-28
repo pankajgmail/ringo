@@ -19,11 +19,11 @@ export default function CallDetail() {
   const { transcript: liveLines } = useLive();
   const q = useQuery({ queryKey: ["calls", id], queryFn: () => api.call(id), refetchInterval: (query) => (query.state.data && OPEN.includes(query.state.data.status) ? 10_000 : false) });
   const cancel = useMutation({ mutationFn: () => api.cancelCall(id), onSuccess: () => { toast("x", "Call cancelled"); qc.invalidateQueries({ queryKey: ["calls"] }); } });
-  // "Call again" or "Follow up": a new call with the same goal, carrying over what Ringvo learned on this one.
+  // "Call again" or "Follow up": a new call with the same goal, carrying over what RingVo learned on this one.
   const repeat = useMutation({
     mutationFn: (at?: string) => api.repeatCall(id, at),
     onSuccess: (next) => {
-      toast("check", next.status === "scheduled" ? `Follow-up scheduled for ${fmtWhen(next.scheduledAt)}` : "Ringvo is calling again");
+      toast("check", next.status === "scheduled" ? `Follow-up scheduled for ${fmtWhen(next.scheduledAt)}` : "RingVo is calling again");
       qc.invalidateQueries({ queryKey: ["calls"] });
       router.replace(`/call/${next.id}`);
     },
@@ -95,7 +95,7 @@ export default function CallDetail() {
               const ringo = l.role === "agent";
               return (
                 <View key={i} style={{ alignSelf: ringo ? "flex-end" : "flex-start", maxWidth: "85%", backgroundColor: ringo ? c.primarySoft : c.card2, borderRadius: 14, borderBottomRightRadius: ringo ? 4 : 14, borderBottomLeftRadius: ringo ? 14 : 4, paddingVertical: 8, paddingHorizontal: 12 }}>
-                  <Text style={{ color: ringo ? c.primaryText : c.muted, fontSize: 11, fontWeight: "700", marginBottom: 2 }}>{ringo ? "Ringvo" : l.role === "user" ? "You" : "Them"}</Text>
+                  <Text style={{ color: ringo ? c.primaryText : c.muted, fontSize: 11, fontWeight: "700", marginBottom: 2 }}>{ringo ? "RingVo" : l.role === "user" ? "You" : "Them"}</Text>
                   <Text style={{ color: c.text, fontSize: 14, lineHeight: 20 }}>{l.text}</Text>
                 </View>
               );

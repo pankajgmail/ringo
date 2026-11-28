@@ -8,7 +8,7 @@ import { Button, ErrorLine, Icon, s, type IconName } from "@/ui.tsx";
 import { c, space } from "@/theme.ts";
 
 const POINTS: [IconName, string][] = [
-  ["hourglass", "Ringvo waits on hold and talks to the rep for you"],
+  ["hourglass", "RingVo waits on hold and talks to the rep for you"],
   ["flame", "Priorities and scheduling, so urgent calls go first"],
   ["headphones", "Answers calls you miss, screens spam and takes messages"],
 ];
@@ -25,7 +25,7 @@ export default function SignIn() {
   return (
     <View style={s.screen}>
       <View style={{ flex: 1, justifyContent: "center", padding: space(6), gap: space(6), maxWidth: 480, width: "100%", alignSelf: "center" }}>
-        <View style={{ alignItems: "center", gap: 8 }} accessibilityRole="header" accessibilityLabel="Ringvo. Never wait on hold again.">
+        <View style={{ alignItems: "center", gap: 8 }} accessibilityRole="header" accessibilityLabel="RingVo. Never wait on hold again.">
           <SvgXml xml={LOGO_XML} height={64} width={64 * LOGO_RATIO} />
           <Text style={{ fontSize: 16, fontWeight: "600", color: c.primaryText }}>
             Never wait <Text style={{ color: c.amber, fontWeight: "800" }}>on hold again.</Text>
@@ -46,7 +46,7 @@ export default function SignIn() {
           <Button title={devAuth ? "Continue (dev mode)" : "Continue with Google"} icon="user" busy={busy === "Google"} disabled={!!busy} onPress={() => go("Google")} />
           {error ? <ErrorLine text={error} /> : null}
         </View>
-        <Text style={[s.meta, { textAlign: "center" }]}>Ringvo tells everyone it calls that it's an AI assistant and that the call may be recorded.</Text>
+        <Text style={[s.meta, { textAlign: "center" }]}>RingVo tells everyone it calls that it's an AI assistant and that the call may be recorded.</Text>
         <Text style={[s.meta, { textAlign: "center" }]}>
           By continuing you agree to the{" "}
           <Text accessibilityRole="link" style={{ color: c.primaryText }} onPress={() => Linking.openURL(`${config.webUrl}/terms.html`)}>Terms</Text> and{" "}

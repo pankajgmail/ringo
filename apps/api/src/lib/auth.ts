@@ -18,10 +18,10 @@ const verifier = env.COGNITO_USER_POOL_ID
 
 type Identity = { providerName?: string };
 
-/** Cognito's names for the identity providers Ringvo allows. No passwords: native Cognito users are refused. */
+/** Cognito's names for the identity providers RingVo allows. No passwords: native Cognito users are refused. */
 const TRUSTED_IDPS = new Set(["Google", "SignInWithApple"]);
 
-/** Ringvo only accepts users who signed in with Google or Apple (federated through Cognito) and have an email. */
+/** RingVo only accepts users who signed in with Google or Apple (federated through Cognito) and have an email. */
 export function isTrustedSignIn(claims: Record<string, unknown>): boolean {
   const identities = Array.isArray(claims.identities) ? (claims.identities as Identity[]) : [];
   const idp = identities.find((i) => TRUSTED_IDPS.has(i.providerName ?? ""));

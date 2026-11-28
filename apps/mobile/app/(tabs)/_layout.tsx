@@ -21,7 +21,7 @@ function AppBar({ state, navigateToTab }: BottomTabBarProps) {
   return (
     <View style={{ paddingHorizontal: 18, paddingTop: Math.max(14, insets.top), paddingBottom: 10, backgroundColor: c.bg }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <View accessibilityRole="header" accessibilityLabel="Ringvo. Never wait on hold again.">
+        <View accessibilityRole="header" accessibilityLabel="RingVo. Never wait on hold again.">
           <SvgXml xml={LOGO_XML} height={34} width={34 * LOGO_RATIO} />
           <Text style={{ marginTop: 5, fontSize: 12, fontWeight: "600", letterSpacing: 0.2, color: c.primaryText }}>
             Never wait <Text style={{ color: c.amber, fontWeight: "800" }}>on hold again.</Text>

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { PROVIDERS } from "@ringo/shared";
 import { env } from "../env.ts";
 
-// Business search for "Who should Ringvo call?". Google Places (New) Text Search, proxied so the
+// Business search for "Who should RingVo call?". Google Places (New) Text Search, proxied so the
 // API key stays on the server. Well-known national brands also get their customer-service line.
 
 const Query = z.object({ q: z.string().trim().min(2).max(80), near: z.string().trim().max(80).optional() });

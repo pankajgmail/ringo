@@ -27,7 +27,7 @@ export async function sendText(mode: TextMode, to: string, body: string): Promis
   return m.sid;
 }
 
-/** Deletes messages from Twilio's logs. Replies can hold PINs and account numbers; Ringvo doesn't keep them. */
+/** Deletes messages from Twilio's logs. Replies can hold PINs and account numbers; RingVo doesn't keep them. */
 export async function forgetMessages(sids: string[]) {
   if (!tw) return;
   for (const sid of sids) {
@@ -59,8 +59,8 @@ export function parseReply(kind: "decision" | "code" | "info", text: string): { 
   return { choice: "reply", note: t.slice(0, 500) };
 }
 
-/** The text Ringvo sends. Kept short: it's read on a lock screen. */
-/** Carrier keywords (CTIA). Twilio blocks or allows sending on these itself; Ringvo must not pass them to a call. */
+/** The text RingVo sends. Kept short: it's read on a lock screen. */
+/** Carrier keywords (CTIA). Twilio blocks or allows sending on these itself; RingVo must not pass them to a call. */
 const STOP_WORDS = ["stop", "stopall", "unsubscribe", "cancel", "end", "quit", "optout", "revoke"];
 const HELP_WORDS = ["help", "info"];
 export function keyword(text: string, optOutType?: string): "stop" | "help" | "start" | null {
@@ -70,10 +70,10 @@ export function keyword(text: string, optOutType?: string): "stop" | "help" | "s
   if (t === "start" || t === "unstop") return "start";
   return null;
 }
-export const HELP_TEXT = "Ringvo: texts only come during calls you start, to ask you a question. Reply STOP to stop texts. Help: support@ringo.app. Msg & data rates may apply.";
+export const HELP_TEXT = "RingVo: texts only come during calls you start, to ask you a question. Reply STOP to stop texts. Help: support@ringo.app. Msg & data rates may apply.";
 
 export function questionText(kind: "decision" | "code" | "info", business: string, question: string) {
   return kind === "decision"
-    ? `Ringvo (${business}): ${question}\nReply 1 to accept, 2 to decline, 3 to join the call, 4 to hang up.`
-    : `Ringvo (${business}): ${question}\nReply with the answer, or JOIN to be connected to the call. Ringvo waits 2 minutes.`;
+    ? `RingVo (${business}): ${question}\nReply 1 to accept, 2 to decline, 3 to join the call, 4 to hang up.`
+    : `RingVo (${business}): ${question}\nReply with the answer, or JOIN to be connected to the call. RingVo waits 2 minutes.`;
 }

@@ -14,7 +14,7 @@ const cognito = env.COGNITO_USER_POOL_ID ? new CognitoIdentityProviderClient({})
 const LIVE = ["dialing", "in_progress", "awaiting_user"] as const;
 
 /**
- * Deletes everything Ringvo holds about a user (App Store 5.1.1(v), CCPA/GDPR erasure):
+ * Deletes everything RingVo holds about a user (App Store 5.1.1(v), CCPA/GDPR erasure):
  * live calls are hung up, Retell's copies (recordings, transcripts) are deleted, then the user row,
  * which cascades to calls, messages, questions and push tokens. Last, the Cognito sign-in is removed
  * so the same Google account starts fresh next time. The audit row keeps no personal data.
@@ -36,7 +36,7 @@ export async function deleteAccount(user: User) {
 
   // The user's own assistant number goes back to Twilio so it stops billing (and can't receive their calls).
   await releaseNumber(user);
-  // Revoke Ringvo's Google Calendar access too.
+  // Revoke RingVo's Google Calendar access too.
   if (user.googleRefreshToken) await disconnect(user).catch(() => undefined);
   // Stop the subscription so a deleted account is never charged again.
   await cancelBilling(user);

@@ -6,6 +6,8 @@ import { CATEGORIES, PRIORITIES, PRIORITY_RANK, type AskMe, type Category, type 
 import { useApi } from "@/api.ts";
 import { Acc, Button, Count, Empty, ErrorBox, ErrorLine, Field, Icon, Loading, Meta, MetaText, Pill, Seg, Stat, Stats, StepLabel, s, useAccordion, useToast } from "@/ui.tsx";
 import { WhoPicker, nearFrom, type Who, type WhoMode } from "@/WhoPicker.tsx";
+import type { PhoneContact } from "@/contacts.ts";
+import type { OutCallInput } from "@ringo/shared";
 import { HistoryRow, LiveCard, SchedRow, isLive } from "@/CallCards.tsx";
 import { CATEGORY, OUTCOME, PRIORITY, TEMPLATES, type Template } from "@/labels.ts";
 import { daysUntil, fmtPhone, fmtSched, localDate, toE164 } from "@/format.ts";
@@ -22,20 +24,35 @@ function suggestPriority(category: Category, resDate: string): Priority {
   return category === "service" ? "medium" : "low";
 }
 
+const pad = (n: number) => String(n).padStart(2, "0");
+const stamp = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/** One-tap times for "Schedule"; they fill the editable field below. */
+function quickTimes(): [string, string][] {
+  const now = new Date();
+  const inHour = new Date(now.getTime() + 60 * 60_000); inHour.setMinutes(Math.ceil(inHour.getMinutes() / 5) * 5, 0, 0);
+  const tonight = new Date(now); tonight.setHours(18, 0, 0, 0);
+  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1); tomorrow.setHours(9, 0, 0, 0);
+  const out: [string, string][] = [["In 1 hour", stamp(inHour)]];
+  if (tonight.getTime() - now.getTime() > 30 * 60_000) out.push(["Today 6 PM", stamp(tonight)]);
+  out.push(["Tomorrow 9 AM", stamp(tomorrow)]);
+  return out;
+}
+const parseWhen = (v: string) => new Date(v.trim().replace(" ", "T"));
+
 const fmtHold = (sec: number) => (sec >= 3600 ? `${(sec / 3600).toFixed(1)}h` : `${Math.round(sec / 60)}m`);
 const fmtMoney = (cents: number) => `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: cents >= 100_00 ? 0 : 2 })}`;
-/** "3h 20m" or "45m": time Ringvo spent so the user didn't have to. */
+/** "3h 20m" or "45m": time RingVo spent so the user didn't have to. */
 const fmtTimeSaved = (sec: number) => { const m = Math.round(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`; };
 
-/** Headline number first: money saved, then the hours Ringvo sat on hold or talked for you. */
+/** Headline number first: money saved, then the hours RingVo sat on hold or talked for you. */
 function SavingsCard({ s: v }: { s: { savedCents: number; monthSavedCents: number; holdSec: number; talkSec: number; done: number } }) {
   if (!v.done && !v.savedCents && !v.talkSec) return null;
   return (
     <View style={[s.card, { flexDirection: "row", alignItems: "center", gap: 14 }]} accessible
-      accessibilityLabel={`Ringvo has saved you ${fmtMoney(v.savedCents)} and ${fmtTimeSaved(v.talkSec)} on the phone, including ${fmtTimeSaved(v.holdSec)} on hold`}>
+      accessibilityLabel={`RingVo has saved you ${fmtMoney(v.savedCents)} and ${fmtTimeSaved(v.talkSec)} on the phone, including ${fmtTimeSaved(v.holdSec)} on hold`}>
       <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: c.okSoft, alignItems: "center", justifyContent: "center" }}><Icon name="sparkles" color={c.ok} /></View>
       <View style={{ flex: 1 }}>
-        <Text style={s.meta}>Ringvo has saved you</Text>
+        <Text style={s.meta}>RingVo has saved you</Text>
         <Text style={{ color: c.text, fontSize: 24, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
           {fmtMoney(v.savedCents)} <Text style={{ color: c.muted, fontSize: 15, fontWeight: "600" }}>and {fmtTimeSaved(v.talkSec)}</Text>
         </Text>
@@ -60,6 +77,7 @@ export default function OutCall() {
   const section = useAccordion<"new" | "upcoming" | "history">();
   const [whoMode, setWhoMode] = useState<WhoMode>("provider");
   const [who, setWho] = useState<Who>(null);
+  const [picked, setPicked] = useState<PhoneContact[]>([]);
   const [category, setCategory] = useState<Category>("billing");
   const [priorityPick, setPriorityPick] = useState<Priority | null>(null);
   const [goal, setGoal] = useState("");
@@ -78,20 +96,44 @@ export default function OutCall() {
   const suggested = suggestPriority(category, resDate);
   const priority = priorityPick ?? suggested;
 
+  /** Everyone this request calls: the chosen business/number, or each selected contact. */
+  const targets = (): NonNullable<Who>[] => whoMode === "contact"
+    ? picked.map((p) => ({ providerId: "custom", name: p.name, number: p.number }))
+    : who ? [who] : [];
+
   const create = useMutation({
-    mutationFn: () => api.createCall({
-      providerId: who!.providerId, category, priority, goal: goal.trim(), limits: limits.trim(), askMe, holdForMe,
-      ...(who!.providerId === "custom" ? { name: who!.name.trim(), number: toE164(who!.number) } : {}),
-      ...(when === "later" && scheduledAt ? { scheduledAt: new Date(scheduledAt.trim().replace(" ", "T")).toISOString() } : {}),
-      ...(category === "reservation" ? { reservation: { date: resDate, time: resTime, party: Number(party) } } : {}),
-    }),
-    onSuccess: (call) => {
-      setGoal(""); setLimits(""); setPriorityPick(null); setFormErr(""); setWho(null); setHoldForMe(false); setTemplate(null);
-      toast(when === "now" ? "phone" : "cal", when === "now" ? `Calling ${call.name}…` : `Scheduled ${call.name}`);
+    mutationFn: async () => {
+      const base: Omit<OutCallInput, "providerId"> = {
+        category, priority, goal: goal.trim(), limits: limits.trim(), askMe, holdForMe,
+        ...(when === "later" && scheduledAt ? { scheduledAt: parseWhen(scheduledAt).toISOString() } : {}),
+        ...(category === "reservation" ? { reservation: { date: resDate, time: resTime, party: Number(party) } } : {}),
+      };
+      // One call per person, in order. Stop at the first failure (e.g. out of free calls) and report what went through.
+      const made: string[] = [];
+      const list = targets();
+      for (const [i, t] of list.entries()) {
+        try {
+          const call = await api.createCall({ ...base, providerId: t.providerId, ...(t.providerId === "custom" ? { name: t.name.trim(), number: toE164(t.number) } : {}) } as OutCallInput);
+          made.push(call.name);
+        } catch (e) {
+          if (!made.length) throw e;
+          if (whoMode === "contact") setPicked((p) => p.slice(i)); // keep only the people not called yet, so retrying doesn't double-call
+          const why = e instanceof Error ? e.message : "Something went wrong.";
+          throw new Error(`Set up ${made.length} call${made.length === 1 ? "" : "s"} (${made.join(", ")}), then stopped: ${why}`);
+        }
+      }
+      return made;
+    },
+    onSuccess: (made) => {
+      setGoal(""); setLimits(""); setPriorityPick(null); setFormErr(""); setWho(null); setPicked([]); setHoldForMe(false); setTemplate(null);
+      const names = made.length > 2 ? `${made[0]} and ${made.length - 1} others` : made.join(" and ");
+      toast(when === "now" ? "phone" : "cal", when === "now" ? `Calling ${names}…` : `Scheduled ${names}`);
+    },
+    onSettled: (_made, error) => {
       qc.invalidateQueries({ queryKey: ["calls"] });
       qc.invalidateQueries({ queryKey: ["savings"] });
       qc.invalidateQueries({ queryKey: ["billing"] });
-      section.openOnly("upcoming");
+      if (!error) section.openOnly("upcoming");
     },
   });
   const cancel = useMutation({
@@ -117,11 +159,16 @@ export default function OutCall() {
 
   const submit = () => {
     if (profileIncomplete) return setFormErr("Finish your profile and verify your phone first.");
-    if (!who) return setFormErr(whoMode === "contact" ? "Pick a contact for Ringvo to call." : whoMode === "other" ? "Add a name and phone number." : "Search and pick who Ringvo should call.");
-    if (who.providerId === "custom" && (!who.name.trim() || !/^\+1\d{10}$/.test(toE164(who.number)))) return setFormErr("Add a name and a US or Canada phone number.");
-    if (goal.trim().length < 3) return setFormErr(category === "reservation" ? "Add any special requests, or just \"No special requests\"." : "Tell Ringvo what to get done.");
+    const list = targets();
+    if (!list.length) return setFormErr(whoMode === "contact" ? "Select at least one contact for RingVo to call." : whoMode === "other" ? "Add a name and phone number." : "Search and pick who RingVo should call.");
+    const bad = list.find((t) => t.providerId === "custom" && (!t.name.trim() || !/^\+1\d{10}$/.test(toE164(t.number))));
+    if (bad) return setFormErr(whoMode === "contact" ? `${bad.name}'s number isn't a US or Canada number. Unselect them to continue.` : "Add a name and a US or Canada phone number.");
+    if (billing.data?.available && !billing.data.subscribed && list.length > billing.data.freeLeft)
+      return setFormErr(`You have ${billing.data.freeLeft} free call${billing.data.freeLeft === 1 ? "" : "s"} left. Select fewer people or subscribe in Settings.`);
+    if (goal.trim().length < 3) return setFormErr(category === "reservation" ? "Add any special requests, or just \"No special requests\"." : "Tell RingVo what to get done.");
     if (category === "reservation" && !/^\d{4}-\d{2}-\d{2}$/.test(resDate)) return setFormErr("Booking date must look like 2026-11-14.");
-    if (when === "later" && Number.isNaN(new Date(scheduledAt.trim().replace(" ", "T")).getTime())) return setFormErr("Pick when Ringvo should call, like 2026-11-24 09:00.");
+    if (when === "later" && Number.isNaN(parseWhen(scheduledAt).getTime())) return setFormErr("Pick when RingVo should call, like 2026-11-24 09:00.");
+    if (when === "later" && parseWhen(scheduledAt).getTime() < Date.now() - 60_000) return setFormErr("That time has passed. Pick a time in the future.");
     setFormErr("");
     create.mutate();
   };
@@ -139,12 +186,12 @@ export default function OutCall() {
       </Stats>
 
       {profileIncomplete ? (
-        <Pressable onPress={() => router.push("/settings")} accessibilityRole="button" accessibilityLabel="Finish your profile so Ringvo can call for you"
+        <Pressable onPress={() => router.push("/settings")} accessibilityRole="button" accessibilityLabel="Finish your profile so RingVo can call for you"
           style={[s.card, { flexDirection: "row", alignItems: "center", gap: 10, borderColor: "rgba(251,191,36,.45)", backgroundColor: "rgba(245,158,11,.08)" }]}>
           <Icon name="user" color={c.warn} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: c.text, fontWeight: "700" }}>Finish your profile</Text>
-            <Text style={s.meta}>Add your name and ZIP code, and verify your phone, so Ringvo can call for you.</Text>
+            <Text style={s.meta}>Add your name and ZIP code, and verify your phone, so RingVo can call for you.</Text>
           </View>
           <Icon name="right" size={18} color={c.warn} />
         </Pressable>
@@ -186,9 +233,9 @@ export default function OutCall() {
 
       {live.map((call) => <LiveCard key={call.id} call={call} onEnd={() => cancel.mutate(call.id)} />)}
 
-      <Acc icon="plus" title="New call" sub="Ringvo calls for you" {...section("new")}>
+      <Acc icon="plus" title="New call" sub="RingVo calls for you" {...section("new")}>
         <StepLabel>Who</StepLabel>
-        <WhoPicker mode={whoMode} onMode={setWhoMode} who={who} onWho={setWho} defaultNear={me.data?.zip || nearFrom(me.data?.address)} />
+        <WhoPicker mode={whoMode} onMode={setWhoMode} who={who} onWho={setWho} picked={picked} onPicked={setPicked} defaultNear={me.data?.zip || nearFrom(me.data?.address)} />
 
         <StepLabel>What</StepLabel>
         <View style={{ flexDirection: "row", gap: 8 }} accessibilityRole="radiogroup" accessibilityLabel="Call type">
@@ -233,17 +280,30 @@ export default function OutCall() {
 
         <StepLabel>When a person answers</StepLabel>
         <Seg<"no" | "yes"> label="When a person answers" value={holdForMe ? "yes" : "no"} onChange={(v) => setHoldForMe(v === "yes")}
-          options={[{ value: "no", label: "Ringvo handles it", icon: "headphones" }, { value: "yes", label: "Hold for me", icon: "phone" }]} />
+          options={[{ value: "no", label: "RingVo handles it", icon: "headphones" }, { value: "yes", label: "Hold for me", icon: "phone" }]} />
         {holdForMe ? (
           <Meta style={{ marginTop: 6 }}>
             <Icon name="hourglass" size={12} color={c.muted} />
-            <MetaText>Ringvo waits through the menu and hold music, then calls {me.data?.phone ? fmtPhone(me.data.phone) : "you"} and connects you the moment a person picks up.</MetaText>
+            <MetaText>RingVo waits through the menu and hold music, then calls {me.data?.phone ? fmtPhone(me.data.phone) : "you"} and connects you the moment a person picks up.</MetaText>
           </Meta>
         ) : null}
 
         <StepLabel>When</StepLabel>
         <Seg label="When" value={when} onChange={setWhen} options={[{ value: "now", label: "Now", icon: "zap" }, { value: "later", label: "Schedule", icon: "cal" }]} />
-        {when === "later" ? <Field label="Call at YYYY-MM-DD HH:MM" icon="clock" value={scheduledAt} onChangeText={setScheduledAt} /> : null}
+        {when === "later" ? (
+          <>
+            <View style={[s.row, { marginTop: 8 }]}>
+              {quickTimes().map(([label, v]) => (
+                <Pressable key={label} onPress={() => setScheduledAt(v)} accessibilityRole="button" accessibilityLabel={`Schedule ${label}`}
+                  style={[s.fchip, scheduledAt === v && { borderColor: c.primary, backgroundColor: c.primarySoft }]}>
+                  <Icon name="clock" size={12} color={c.primaryText} />
+                  <Text style={{ color: c.primaryText, fontSize: 12, fontWeight: "600" }}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Field label="Call at YYYY-MM-DD HH:MM" icon="clock" value={scheduledAt} onChangeText={setScheduledAt} />
+          </>
+        ) : null}
 
         <Pressable onPress={() => setMore((m) => !m)} accessibilityRole="button" accessibilityState={{ expanded: more }}
           style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 14 }}>
@@ -262,10 +322,12 @@ export default function OutCall() {
 
         {formErr ? <ErrorLine text={formErr} /> : create.error ? <ErrorBox error={create.error} /> : null}
         {outOfCalls ? <Button title={`Subscribe to keep calling, ${price}/mo`} icon="card" onPress={() => router.push("/settings")} /> : null}
-        <Button title={holdForMe ? (when === "now" ? "Hold for me now" : "Schedule hold for me") : when === "now" ? "Call now" : "Schedule call"} icon={when === "now" ? "phone" : "cal"} onPress={submit} busy={create.isPending} />
+        <Button title={holdForMe ? (when === "now" ? "Hold for me now" : "Schedule hold for me")
+          : whoMode === "contact" && picked.length > 1 ? (when === "now" ? `Call ${picked.length} people now` : `Schedule ${picked.length} calls`)
+          : when === "now" ? "Call now" : "Schedule call"} icon={when === "now" ? "phone" : "cal"} onPress={submit} busy={create.isPending} />
         <Meta style={{ justifyContent: "center", marginTop: 10 }}>
           <Icon name="shield" size={12} color={c.muted} />
-          <MetaText>Ringvo tells them it's an AI assistant calling for you.</MetaText>
+          <MetaText>RingVo tells them it's an AI assistant calling for you.</MetaText>
         </Meta>
       </Acc>
 

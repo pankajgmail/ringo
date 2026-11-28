@@ -56,7 +56,7 @@ function GetNumber({ phoneVerified, available }: { phoneVerified: boolean; avail
           </View>
           <Text style={[s.h, { textAlign: "center" }]}>Get your assistant number</Text>
           <Text style={[s.muted, { textAlign: "center" }]}>
-            Ringvo gives you your own local number. Forward your missed calls to it and Ringvo answers, screens spam and takes messages for you.
+            RingVo gives you your own local number. Forward your missed calls to it and RingVo answers, screens spam and takes messages for you.
           </Text>
         </View>
         {!phoneVerified ? (
@@ -118,11 +118,11 @@ export default function Forwarding() {
             <CodeRow icon="clock" label="No answer after ~5 rings" code={f.noAnswer} />
             <CodeRow icon="phone-off" label="When you're busy or decline" code={f.busy} />
             <CodeRow icon="signal" label="When your phone is off or has no signal" code={f.unreachable} />
-            <Meta><Icon name="alert" size={12} color={c.muted} /><MetaText>This replaces your carrier voicemail. Ringvo takes messages instead.</MetaText></Meta>
+            <Meta><Icon name="alert" size={12} color={c.muted} /><MetaText>This replaces your carrier voicemail. RingVo takes messages instead.</MetaText></Meta>
           </Card>
           <Card>
             <Step n={2} title="Confirm it works" />
-            <Text style={s.muted}>Ask a friend to call you and don't answer. Ringvo should pick up after about 5 rings, and the call shows up in In Call history.</Text>
+            <Text style={s.muted}>Ask a friend to call you and don't answer. RingVo should pick up after about 5 rings, and the call shows up in In Call history.</Text>
             {toggle.error ? <ErrorBox error={toggle.error} /> : null}
             <Button title={d.forwardingActive ? "Mark forwarding as off" : "It works, mark as on"} icon={d.forwardingActive ? "x" : "check-circle"}
               kind={d.forwardingActive ? "ghost" : "primary"} busy={toggle.isPending} onPress={() => toggle.mutate(!d.forwardingActive)} />
