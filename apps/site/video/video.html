@@ -1,0 +1,210 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#0b0f1a;font-family:-apple-system,"SF Pro Display","Helvetica Neue",Arial,sans-serif;color:#e8eaf2}
+#bg{position:absolute;inset:0;background:radial-gradient(1200px 800px at 75% 20%,#33267a 0,#0b0f1a 62%)}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55}
+.scene{position:absolute;inset:0;opacity:0}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.big{font-size:120px;font-weight:800;letter-spacing:-4px;line-height:1.02}
+.mid{font-size:58px;font-weight:700;letter-spacing:-1.5px;line-height:1.1}
+.sub{font-size:34px;color:#b9c0d6;margin-top:22px;font-weight:500}
+.grad{background:linear-gradient(90deg,#818cf8,#c084fc 55%,#fbbf24);-webkit-background-clip:text;background-clip:text;color:transparent}
+.timer{font-variant-numeric:tabular-nums;font-size:200px;font-weight:800;letter-spacing:-6px;color:#f87171}
+.notes{position:absolute;font-size:64px;color:#6b7280}
+/* phone */
+#phone{position:absolute;left:1120px;top:70px;width:470px;height:940px;border-radius:66px;background:#05070d;border:12px solid #20263b;box-shadow:0 40px 120px rgba(99,102,241,.45),inset 0 0 0 2px #2f3753;opacity:0;overflow:hidden}
+#phone .island{position:absolute;left:50%;top:14px;width:130px;height:36px;margin-left:-65px;border-radius:20px;background:#000;z-index:5}
+.scr{position:absolute;inset:0;padding:74px 26px 26px;opacity:0;background:#0b0f1a}
+.hdr{display:flex;align-items:center;gap:10px;font-weight:800;font-size:26px;margin-bottom:16px}
+.hdr .ic{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366F1,#A855F7)}
+.lbl{font-size:15px;color:#9aa3b5;text-transform:uppercase;letter-spacing:1.5px;margin:14px 0 8px;font-weight:700}
+.field{background:#0f1424;border:1px solid #262d44;border-radius:14px;padding:14px 16px;font-size:19px;min-height:52px}
+.seg{display:flex;gap:6px;background:#0f1424;border:1px solid #262d44;border-radius:14px;padding:5px}
+.seg div{flex:1;text-align:center;padding:10px 0;border-radius:10px;font-size:16px;font-weight:700;color:#9aa3b5}
+.seg .on{background:#7c6cf6;color:#fff}
+.row{display:flex;align-items:center;gap:12px;background:#151a2b;border:1px solid #262d44;border-radius:14px;padding:10px 12px;margin-bottom:8px}
+.row.on{border-color:#7c6cf6;background:#1b1f3b}
+.av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#5b5ce6,#9333ea);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex:none}
+.nm{font-weight:700;font-size:17px}.ph{font-size:14px;color:#9aa3b5;margin-top:2px}
+.cb{margin-left:auto;width:26px;height:26px;border-radius:7px;border:2px solid #6b7280;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:16px}
+.cb{color:transparent}.row.on .cb{color:#fff;background:#7c6cf6;border-color:#7c6cf6}
+.btn{margin-top:16px;border-radius:16px;padding:17px;text-align:center;font-weight:800;font-size:20px;background:linear-gradient(90deg,#5b5ce6,#9333ea);color:#fff}
+.step{display:flex;align-items:center;gap:14px;padding:12px 4px;font-size:19px;color:#6b7280;transition:none}
+.dot{width:30px;height:30px;border-radius:50%;border:3px solid #374151;flex:none;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900}
+.step.done{color:#e8eaf2}.step.done .dot{background:#34d399;border-color:#34d399;color:#05211a}
+.step.now{color:#fff;font-weight:700}.step.now .dot{border-color:#a78bfa;box-shadow:0 0 0 6px rgba(167,139,250,.25)}
+.card{background:#151a2b;border:1px solid #262d44;border-radius:18px;padding:18px}
+.notif{position:absolute;left:14px;right:14px;top:60px;background:rgba(30,34,52,.96);border:1px solid #3a4363;border-radius:24px;padding:16px 18px;box-shadow:0 20px 50px rgba(0,0,0,.6);z-index:6;opacity:0}
+.pill{display:inline-block;padding:6px 12px;border-radius:999px;font-size:15px;font-weight:800}
+.cap{position:absolute;left:150px;top:300px;width:880px;opacity:0}
+.cap .k{font-size:24px;font-weight:800;color:#a78bfa;letter-spacing:3px;text-transform:uppercase;margin-bottom:18px}
+.cap .t{font-size:76px;font-weight:800;letter-spacing:-2.5px;line-height:1.05}
+.cap .d{font-size:32px;color:#b9c0d6;margin-top:24px;line-height:1.35}
+.badge{display:inline-flex;align-items:center;gap:14px;background:#000;border:2px solid #4b5563;border-radius:18px;padding:14px 28px;margin:0 12px;text-align:left}
+.badge small{display:block;font-size:17px;color:#d1d5db}.badge b{display:block;font-size:34px;font-weight:700;letter-spacing:-.5px;line-height:1.05}
+.tap{position:absolute;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.35);border:3px solid rgba(255,255,255,.8);opacity:0;z-index:9;pointer-events:none}
+</style></head>
+<body>
+<div id="bg"></div>
+<div class="blob" id="b1" style="width:600px;height:600px;background:#6366f1;left:-150px;top:500px"></div>
+<div class="blob" id="b2" style="width:500px;height:500px;background:#a855f7;left:1500px;top:-150px"></div>
+
+<!-- S0 hook: on hold -->
+<div class="scene center" id="s0">
+  <div class="sub" style="margin:0 0 10px;font-size:38px">Hold time</div>
+  <div class="timer" id="timer">00:47:12</div>
+  <div class="mid" style="margin-top:20px">Stuck on hold. <span style="color:#9aa3b5">Again.</span></div>
+  <div class="notes" id="n1" style="left:420px;top:260px">♪</div>
+  <div class="notes" id="n2" style="left:1420px;top:330px">♫</div>
+  <div class="notes" id="n3" style="left:1300px;top:740px">♪</div>
+</div>
+
+<!-- S1 logo -->
+<div class="scene center" id="s1">
+  <div id="logo" style="width:260px;height:260px;filter:drop-shadow(0 30px 60px rgba(99,102,241,.6))">
+    <svg viewBox="0 0 512 512" width="260" height="260"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#A855F7"/></linearGradient></defs>
+    <rect width="512" height="512" rx="115" fill="url(#g)"/><circle cx="256" cy="256" r="150" fill="none" stroke="#fff" stroke-width="40"/>
+    <g transform="translate(256 262) scale(8.2) translate(-12 -12)"><path fill="#fff" d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></g>
+    <g id="waves" fill="none" stroke="#FDE68A" stroke-width="18" stroke-linecap="round"><path d="M372 108 a60 60 0 0 1 32 32"/><path d="M392 72 a110 110 0 0 1 48 48"/></g></svg>
+  </div>
+  <div class="big" style="margin-top:40px" id="wm">Meet <span class="grad">RingVo</span></div>
+  <div class="sub" id="tag">Your AI phone assistant. It makes the call, so you don't have to.</div>
+</div>
+
+<!-- captions next to the phone -->
+<div class="cap" id="c1"><div class="k">1 · Tell it</div><div class="t">Who to call.<br>What you need.</div><div class="d">Pick a business, one contact, or several at once. Call now or schedule it.</div></div>
+<div class="cap" id="c2"><div class="k">2 · It handles it</div><div class="t">Menus. Hold music.<br>The whole call.</div><div class="d">RingVo dials, presses the right buttons and waits on hold for you.</div></div>
+<div class="cap" id="c3"><div class="k">3 · You decide</div><div class="t">It checks with you<br>when it matters.</div><div class="d">Reply from your lock screen. RingVo carries on.</div></div>
+<div class="cap" id="c4"><div class="k">Done</div><div class="t">The result,<br>not the runaround.</div><div class="d">A summary of every call. Missed calls answered, spam blocked.</div></div>
+
+<div id="phone"><div class="island"></div>
+  <!-- P1: new call with contacts -->
+  <div class="scr" id="p1">
+    <div class="hdr"><div class="ic"></div>New call</div>
+    <div class="lbl">Who</div>
+    <div class="seg"><div>Business</div><div class="on">Contacts</div><div>Other</div></div>
+    <div style="height:10px"></div>
+    <div class="row" id="r1"><div class="av">MR</div><div><div class="nm">Maria Rodriguez</div><div class="ph">mobile · (415) 555-0142</div></div><div class="cb">✓</div></div>
+    <div class="row" id="r2"><div class="av">DK</div><div><div class="nm">Dr. Kim's Dental</div><div class="ph">work · (415) 555-0199</div></div><div class="cb">✓</div></div>
+    <div class="row" id="r3"><div class="av">JT</div><div><div class="nm">James Turner</div><div class="ph">mobile · (628) 555-0117</div></div><div class="cb">✓</div></div>
+    <div class="row" id="r4"><div class="av">SP</div><div><div class="nm">Sunset Pizza</div><div class="ph">(415) 555-0163</div></div><div class="cb">✓</div></div>
+    <div class="lbl">What</div>
+    <div class="field" id="goal"></div>
+    <div class="lbl">When</div>
+    <div class="seg"><div>Now</div><div class="on">Schedule</div></div>
+    <div class="btn" id="go">Schedule 3 calls</div>
+  </div>
+  <!-- P2: live call -->
+  <div class="scr" id="p2">
+    <div class="hdr"><div class="ic"></div>Live call</div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:12px"><div class="av" style="width:52px;height:52px;font-size:18px">CI</div>
+      <div><div class="nm" style="font-size:20px">City Internet Co.</div><div class="ph">Billing · waive late fee</div></div>
+      <span class="pill" style="margin-left:auto;background:rgba(16,185,129,.15);color:#34d399" id="livepill">● LIVE</span></div>
+    </div>
+    <div class="step" id="st1"><div class="dot">✓</div>Dialing</div>
+    <div class="step" id="st2"><div class="dot">✓</div>Pressed 2 for billing</div>
+    <div class="step" id="st3"><div class="dot">✓</div><span>On hold <b id="hold" style="font-variant-numeric:tabular-nums">00:00</b></span></div>
+    <div class="step" id="st4"><div class="dot">✓</div>Talking with an agent</div>
+    <div class="step" id="st5"><div class="dot">✓</div>Getting your answer</div>
+    <div class="card" style="margin-top:16px;font-size:17px;color:#b9c0d6;line-height:1.4" id="said">“Hi, I'm RingVo, an AI assistant calling on behalf of Alex…”</div>
+    <div class="notif" id="notif">
+      <div style="display:flex;gap:10px;align-items:center;font-size:15px;color:#9aa3b5"><div class="ic" style="width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,#6366F1,#A855F7)"></div>RINGVO · now</div>
+      <div style="font-weight:800;font-size:19px;margin-top:8px">They offer a $35 credit instead.</div>
+      <div style="font-size:17px;color:#cbd5e1;margin-top:4px">Accept the credit?</div>
+      <div style="display:flex;gap:10px;margin-top:12px"><div class="pill" id="yes" style="flex:1;text-align:center;background:#7c6cf6;color:#fff;padding:10px">Yes, accept</div><div class="pill" style="flex:1;text-align:center;background:#262d44;color:#e8eaf2;padding:10px">No</div></div>
+    </div>
+  </div>
+  <!-- P3: summary -->
+  <div class="scr" id="p3">
+    <div class="hdr"><div class="ic"></div>Call summary</div>
+    <div class="card" style="text-align:center;padding:26px 18px">
+      <div style="width:76px;height:76px;margin:0 auto;border-radius:50%;background:rgba(16,185,129,.15);display:flex;align-items:center;justify-content:center;font-size:42px;color:#34d399;font-weight:900" id="chk">✓</div>
+      <div style="font-size:26px;font-weight:800;margin-top:14px">Credit applied</div>
+      <div style="font-size:17px;color:#9aa3b5;margin-top:6px">City Internet Co. · 31 min</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <div class="card" style="flex:1;text-align:center"><div style="font-size:34px;font-weight:800;color:#34d399" id="saved">$0</div><div class="ph">saved</div></div>
+      <div class="card" style="flex:1;text-align:center"><div style="font-size:34px;font-weight:800;color:#fbbf24" id="holdsaved">0m</div><div class="ph">hold skipped</div></div>
+    </div>
+    <div class="lbl" style="margin-top:20px">Missed calls</div>
+    <div class="row" id="m1"><div class="av" style="background:#3f1d24;color:#f87171">!</div><div><div class="nm">Spam call ended</div><div class="ph">“Your car's extended warranty…”</div></div><span class="pill" style="margin-left:auto;background:rgba(239,68,68,.15);color:#f87171">Blocked</span></div>
+    <div class="row" id="m2"><div class="av">DK</div><div><div class="nm">Dr. Kim's Dental</div><div class="ph">Message: “Cleaning moved to Tue 3 PM”</div></div><span class="pill" style="margin-left:auto;background:rgba(59,130,246,.15);color:#60a5fa">Message</span></div>
+  </div>
+  <div class="tap" id="tap"></div>
+</div>
+
+<!-- S5 CTA -->
+<div class="scene center" id="s5">
+  <div style="width:150px;height:150px;margin-bottom:30px" id="ctaicon"></div>
+  <div class="big">Let <span class="grad">RingVo</span> get it.</div>
+  <div class="sub">5 calls free · US only</div>
+  <div style="margin-top:50px;display:flex">
+    <div class="badge"><span style="font-size:46px;line-height:1"></span><div><small>Download on the</small><b>App Store</b></div></div>
+    <div class="badge"><svg width="42" height="46" viewBox="0 0 40 44"><path fill="#34d399" d="M2 2v40l21-20z"/><path fill="#60a5fa" d="M2 42l21-20 6 6z"/><path fill="#fbbf24" d="M2 2l27 14-6 6z"/><path fill="#f87171" d="M29 16l9 5c2 1 2 1 0 2l-9 5-6-6z"/></svg><div><small>GET IT ON</small><b>Google Play</b></div></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const cl=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const ease=x=>{x=cl(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+const out=x=>1-Math.pow(1-cl(x),3);
+// visibility window with fades: in at a, out at b
+const win=(t,a,b,f=.45)=>cl(Math.min((t-a)/f,(b-t)/f));
+const pad=n=>String(n).padStart(2,"0");
+const GOAL="Ask if they can fit me in this week";
+document.getElementById("ctaicon").innerHTML=document.getElementById("logo").innerHTML.replace('width="260" height="260"','width="150" height="150"').replace('id="g"','id="g2"').replace(/url\(#g\)/g,"url(#g2)");
+function tapAt(t,t0,x,y){const k=(t-t0)/.5;const e=$("tap");if(k<0||k>1)return false;e.style.left=x-35+"px";e.style.top=y-35+"px";e.style.opacity=String(1-k);e.style.transform=`scale(${.6+k*.8})`;return true}
+window.render=function(t){
+  $("b1").style.transform=`translate(${Math.sin(t*.4)*120}px,${Math.cos(t*.3)*80}px)`;
+  $("b2").style.transform=`translate(${Math.cos(t*.35)*120}px,${Math.sin(t*.45)*90}px)`;
+  // S0 0–4
+  let o=win(t,-1,4.0);$("s0").style.opacity=o;$("s0").style.transform=`scale(${1+t*.012})`;
+  const sec=47*60+12+Math.floor(t*9);$("timer").textContent=`00:${pad(Math.floor(sec/60))}:${pad(sec%60)}`;
+  ["n1","n2","n3"].forEach((id,i)=>{$(id).style.transform=`translateY(${Math.sin(t*2+i*2)*24}px) rotate(${Math.sin(t+i)*14}deg)`});
+  // S1 4–8
+  o=win(t,4.0,8.1);$("s1").style.opacity=o;
+  const lk=out((t-4.0)/.9);$("logo").style.transform=`scale(${.4+.6*lk}) rotate(${(1-lk)*-25}deg)`;
+  $("waves").style.opacity=String(.4+.6*Math.abs(Math.sin(t*4)));
+  $("wm").style.transform=`translateY(${(1-out((t-4.4)/.8))*40}px)`;$("wm").style.opacity=cl((t-4.4)/.6);
+  $("tag").style.opacity=cl((t-5.0)/.6);
+  // phone 8–27
+  const po=win(t,8.0,27.0,.6);$("phone").style.opacity=po;
+  $("phone").style.transform=`translateY(${(1-out((t-8)/.9))*120}px) rotate(${Math.sin(t*.5)*.6}deg)`;
+  $("c1").style.opacity=win(t,8.3,15.0);$("c2").style.opacity=win(t,15.1,19.6);$("c3").style.opacity=win(t,19.7,22.5);$("c4").style.opacity=win(t,22.6,27.0);
+  ["c1","c2","c3","c4"].forEach(id=>$(id).style.transform=`translateX(${(1-cl(+$(id).style.opacity))*-40}px)`);
+  // P1 8–15
+  $("p1").style.opacity=win(t,8,15.1,.35);
+  const ticks=[[9.6,"r1",205],[10.5,"r2",270],[11.4,"r4",400]];
+  ticks.forEach(([tt,id])=>$(id).classList.toggle("on",t>=tt));
+  const ty=cl((t-12.0)/1.8);$("goal").textContent=GOAL.slice(0,Math.round(GOAL.length*ty))+(t>12&&t<14.6&&Math.floor(t*3)%2?"|":"");
+  $("go").style.transform=t>14.2&&t<14.5?"scale(.96)":"none";
+  let tapped=false;
+  for(const [tt,id] of ticks){const r=$(id);tapped=tapAt(t,tt-.1,r.offsetLeft+r.offsetWidth-40,r.offsetTop+r.offsetHeight/2)||tapped}
+  if(!tapped){const g=$("go");tapped=tapAt(t,14.1,g.offsetLeft+g.offsetWidth/2,g.offsetTop+g.offsetHeight/2)}
+  // P2 15–22.5
+  $("p2").style.opacity=win(t,15.1,22.6,.35);
+  const marks=[15.4,16.2,17.0,19.0,22.0];
+  ["st1","st2","st3","st4","st5"].forEach((id,i)=>{const e=$(id);e.className="step"+(t>=marks[i+1]?" done":t>=marks[i]?" now":"")});
+  const h=t<17?0:Math.min(24*60+37,Math.floor((t-17)/2*(24*60+37)));$("hold").textContent=`${pad(Math.floor(h/60))}:${pad(h%60)}`;
+  $("said").textContent=t<17?"“Hi, I'm RingVo, an AI assistant calling on behalf of Alex…”":t<19?"♪ Hold music… RingVo is waiting so you don't have to.":"“Alex was charged a $35 late fee. Can you waive it?”";
+  $("livepill").style.opacity=String(.6+.4*Math.abs(Math.sin(t*3)));
+  const nk=t>=19.9&&t<21.9;const n=$("notif");n.style.opacity=nk?cl((t-19.9)/.3)*cl((21.9-t)/.3):0;n.style.transform=`translateY(${(1-out((t-19.9)/.4))*-60}px)`;
+  if(!tapped){const y=$("yes");tapped=tapAt(t,21.2,n.offsetLeft+y.offsetLeft+y.offsetWidth/2,n.offsetTop+y.offsetTop+y.offsetHeight/2)}
+  // P3 22.5–27
+  $("p3").style.opacity=win(t,22.6,27.2,.35);
+  $("chk").style.transform=`scale(${out((t-22.8)/.5)})`;
+  $("saved").textContent="$"+Math.round(35*out((t-23)/1.2));
+  $("holdsaved").textContent=Math.round(24*out((t-23)/1.2))+"m";
+  $("m1").style.opacity=cl((t-24.6)/.4);$("m1").style.transform=`translateX(${(1-out((t-24.6)/.5))*60}px)`;
+  $("m2").style.opacity=cl((t-25.2)/.4);$("m2").style.transform=`translateX(${(1-out((t-25.2)/.5))*60}px)`;
+  if(!tapped)$("tap").style.opacity=0;
+  // S5 27–30
+  o=cl((t-27.1)/.5);$("s5").style.opacity=o;$("s5").style.transform=`scale(${.94+.06*out((t-27.1)/.8)})`;
+};
+render(0);
+</script>
+</body></html>

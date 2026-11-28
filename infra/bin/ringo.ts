@@ -1,5 +1,6 @@
 import { App } from "aws-cdk-lib";
 import { RingoStack } from "../lib/ringo-stack.ts";
+import { RingVoSiteStack } from "../lib/site-stack.ts";
 
 const app = new App();
 const stage = (app.node.tryGetContext("stage") as string) ?? "dev";
@@ -19,3 +20,6 @@ new RingoStack(app, `Ringo-${stage}`, {
     ? { teamId: app.node.tryGetContext("appleTeamId"), keyId: app.node.tryGetContext("appleKeyId"), servicesId: app.node.tryGetContext("appleServicesId") }
     : undefined,
 });
+
+// Marketing site (apps/site). Deploy on its own: cdk deploy RingVo-site
+new RingVoSiteStack(app, "RingVo-site", { env: { account, region } });

@@ -10,3 +10,6 @@ cdk.out/
 .env.*
 !.env.example
 .DS_Store
+
+# video render scratch
+apps/site/video/frames/
