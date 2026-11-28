@@ -115,7 +115,7 @@ export function WhoPicker({ mode, onMode, who, onWho, picked, onPicked, defaultN
   );
 }
 
-type Book = { state: "idle" | "loading" } | { state: "ok"; all: PhoneContact[]; limited: boolean } | { state: "denied"; canAsk: boolean } | { state: "unsupported" } | { state: "error" };
+type Book = { state: "idle" | "loading" } | { state: "ok"; all: PhoneContact[]; limited: boolean } | { state: "denied"; canAsk: boolean } | { state: "unsupported" } | { state: "error"; msg: string };
 
 /** Every phone contact, searchable, with checkboxes. Read on the device; only the chosen numbers are sent to RingVo. */
 function ContactList({ picked, onPicked }: { picked: PhoneContact[]; onPicked: (p: PhoneContact[]) => void }) {
@@ -131,7 +131,7 @@ function ContactList({ picked, onPicked }: { picked: PhoneContact[]; onPicked: (
         setBook({ state: "ok", all: r.contacts, limited: r.limited });
         if (Platform.OS === "web") onPicked(r.contacts.slice(0, MAX_CONTACTS)); // browser picker: what they picked is the selection
       } else setBook(r.status === "denied" ? { state: "denied", canAsk: r.canAsk } : { state: "unsupported" });
-    } catch { setBook({ state: "error" }); }
+    } catch (e) { setBook({ state: "error", msg: e instanceof Error ? e.message : String(e) }); }
   };
   useEffect(() => { if (Platform.OS !== "web") void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -177,7 +177,7 @@ function ContactList({ picked, onPicked }: { picked: PhoneContact[]; onPicked: (
             <Text style={{ color: c.primaryText, fontWeight: "700" }}>{Platform.OS === "web" ? "Pick from your contacts" : "Show my contacts"}</Text>
           </Pressable>
           {book.state === "unsupported" ? <ErrorLine text="This browser can't open your contacts. Use the RingVo app on your phone, or choose Other and type the number." /> : null}
-          {book.state === "error" ? <ErrorLine text="Couldn't read your contacts. Try again." /> : null}
+          {book.state === "error" ? <ErrorLine text={`Couldn't read your contacts. Try again. (${book.msg.slice(0, 160)})`} /> : null}
         </>
       ) : book.state === "loading" ? (
         <ActivityIndicator color={c.primary} style={{ padding: 16 }} accessibilityLabel="Loading contacts" />

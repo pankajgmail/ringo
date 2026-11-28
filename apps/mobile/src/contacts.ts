@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
-import { Contact, ContactField, ContactsSortOrder, getPermissionsAsync, requestPermissionsAsync } from "expo-contacts";
+import { Contact, ContactField, getPermissionsAsync, requestPermissionsAsync } from "expo-contacts";
+import * as LegacyContacts from "expo-contacts/legacy";
 import { toE164 } from "./format.ts";
 
 /** One dialable entry: a contact can appear several times, once per phone number. */
@@ -18,20 +19,40 @@ function tidyLabel(l?: string) {
   return t || undefined;
 }
 
+type Raw = { id: string; name: string; phones: { number?: string; label?: string }[] };
+
+/**
+ * New API. No sortOrder: in expo-contacts 58 iOS decodes "userDefault" as "useDefault", so passing
+ * ContactsSortOrder.UserDefault makes every iOS call throw. We sort by name ourselves below.
+ */
+async function readNext(): Promise<Raw[]> {
+  const rows = await Contact.getAllDetails(FIELDS);
+  return rows.map((r) => ({ id: r.id, name: (r.fullName || [r.givenName, r.familyName].filter(Boolean).join(" ")).trim(), phones: r.phones ?? [] }));
+}
+
+/** Older API, kept as a fallback in case the new one fails on a device. */
+async function readLegacy(): Promise<Raw[]> {
+  const F = LegacyContacts.Fields;
+  const { data } = await LegacyContacts.getContactsAsync({ fields: [F.Name, F.FirstName, F.LastName, F.PhoneNumbers] });
+  return data.map((r) => ({ id: r.id ?? r.name, name: (r.name || [r.firstName, r.lastName].filter(Boolean).join(" ")).trim(), phones: r.phoneNumbers ?? [] }));
+}
+
 /** Reads every contact that has a phone number, on the device only. Nothing is uploaded. */
 async function readAll(): Promise<PhoneContact[]> {
-  const rows = await Contact.getAllDetails(FIELDS, { sortOrder: ContactsSortOrder.UserDefault });
+  let rows: Raw[];
+  try { rows = await readNext(); } catch (e) {
+    try { rows = await readLegacy(); } catch { throw e; }
+  }
   const out: PhoneContact[] = [];
   const seen = new Set<string>();
   for (const r of rows) {
-    const name = (r.fullName || [r.givenName, r.familyName].filter(Boolean).join(" ")).trim();
-    for (const p of r.phones ?? []) {
+    for (const p of r.phones) {
       const number = p.number?.trim();
       if (!number) continue;
       const k = `${r.id}|${toE164(number)}`;
       if (seen.has(k)) continue;
       seen.add(k);
-      out.push({ key: k, name: name || number, number, label: tidyLabel(p.label) });
+      out.push({ key: k, name: r.name || number, number, label: tidyLabel(p.label) });
     }
   }
   return out.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
