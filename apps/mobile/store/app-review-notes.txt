@@ -1,0 +1,31 @@
+1. SCREEN RECORDING
+Attached in App Review Information (Attachment) and in the reply to App Review. Recorded on an iPhone running the latest iOS with build 1.1.0. It shows: launch, Sign in with Apple, profile setup, placing a call to a business, live call status, an in-call question answered by the user, the call summary, In Call history, the Plan screen and Stripe web checkout, and account deletion (Settings > Account > Delete my account).
+
+2. PURPOSE AND AUDIENCE
+Ringvo is an AI phone assistant for adults in the United States. It solves the time people lose on hold and on routine phone calls. The user types what they need ("reschedule my dentist appointment to Tuesday"); Ringvo calls the business, waits on hold, navigates phone menus, talks to the representative, asks the user in the app if it needs a decision, then shows a summary. It can also answer the user's missed calls on a Ringvo number: it takes a message, screens sales calls and ends spam calls.
+
+3. HOW TO ACCESS AND TEST
+Sign in: tap "Continue with Apple" (any Apple Account works), or "Continue with Google" with this demo account:
+  Email: DEMO_EMAIL
+  Password: DEMO_PASSWORD
+New accounts get 5 free calls; no payment is needed to test.
+- Place a call: Home > New call > enter a business phone number (for example a store's public line) > type a request > Start call. The Live screen shows each step; the summary appears when the call ends.
+- Missed calls: In Call tab shows calls Ringvo answered, with summaries.
+- Subscription: Settings > Plan > Subscribe opens Stripe Checkout in Safari (US storefront link-out, guideline 3.1.1(a)). Stripe test mode can be used with card 4242 4242 4242 4242.
+- Delete account: Settings > Account > Delete my account. This permanently deletes the profile, calls, recordings and sign-in.
+User content (call notes and summaries) is private to the user. Users cannot see, message or share content with other users, so there is no user-to-user content to report or block.
+
+4. EXTERNAL SERVICES
+- Retell AI: AI voice agent that speaks on calls (speech recognition, language model, voice)
+- Twilio: phone numbers, call routing, SMS, phone verification (Twilio Verify), WhatsApp messages
+- Amazon Web Services: Cognito (sign-in), API hosting, encrypted database and storage
+- Sign in with Apple and Google Sign-In: authentication
+- Stripe: web subscription payments ($9.99/month after 5 free calls)
+- Apple Push Notification service (via Expo): call updates and questions
+- Google Calendar API (optional, user-connected): adds booked appointments
+
+5. REGIONAL DIFFERENCES
+Ringvo is offered on the United States storefront only. It places calls to and provides phone numbers in the US (+1). Features are the same for all users in that region.
+
+6. REGULATED INDUSTRY
+Ringvo is not a carrier; calls and numbers are provided by Twilio, a licensed provider. Ringvo only places calls the user explicitly requests, one at a time, to a business the user chooses; it does no marketing, bulk or automated outbound dialing. Every call opens with: "Hi, I'm Ringvo, an AI assistant calling on behalf of [user]. This call may be recorded." If the other party doesn't consent, Ringvo ends the call. Ringvo uses no protected third-party content.
